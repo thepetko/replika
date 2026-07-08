@@ -1,5 +1,7 @@
 const RATINGS = new Set(['bad', 'almost', 'good']);
 const MAX_HISTORY = 50;
+const ROLLING_WINDOW_SIZE = 5;
+const FULL_CHECKPOINT_INTERVAL = 5;
 
 function copyState(state) {
   return { ...state };
@@ -61,6 +63,25 @@ function startWholeRehearsal(session) {
   session.state.segmentEnd = session.sentences.length - 1;
 }
 
+function shouldCheckSequence(session, index) {
+  const block = currentBlockFor(session, index);
+  const learnedInBlock = index - block.start + 1;
+  return index === block.end
+    || learnedInBlock >= 3
+    || (index + 1) % FULL_CHECKPOINT_INTERVAL === 0;
+}
+
+function startSequenceCheck(session, index) {
+  const fullCheckpoint = (index + 1) % FULL_CHECKPOINT_INTERVAL === 0;
+  session.state.phase = fullCheckpoint
+    ? index === session.sentences.length - 1 ? 'all' : 'checkpoint'
+    : 'block';
+  session.state.segmentStart = fullCheckpoint
+    ? 0
+    : Math.max(0, index - ROLLING_WINDOW_SIZE + 1);
+  session.state.segmentEnd = index;
+}
+
 function advanceToNextSentence(session) {
   const next = Math.max(session.state.current + 1, session.state.knownEnd + 1);
   if (next >= session.sentences.length) {
@@ -87,13 +108,8 @@ function handleLearnRating(session, rating) {
       return;
     }
 
-    const block = currentBlockFor(session, state.current);
-    const learnedInBlock = state.current - block.start + 1;
-
-    if (state.current === block.end || learnedInBlock >= 3) {
-      state.phase = 'block';
-      state.segmentStart = block.start;
-      state.segmentEnd = state.current;
+    if (shouldCheckSequence(session, state.current)) {
+      startSequenceCheck(session, state.current);
     } else if (state.current > 0) {
       state.phase = 'bridge';
       state.segmentStart = state.current - 1;
@@ -114,12 +130,8 @@ function handleLearnRating(session, rating) {
 
 function advanceAfterBridge(session) {
   const state = session.state;
-  const block = currentBlockFor(session, state.segmentEnd);
-  const learnedInBlock = state.segmentEnd - block.start + 1;
-
-  if (state.segmentEnd === block.end || learnedInBlock >= 3) {
-    state.phase = 'block';
-    state.segmentStart = block.start;
+  if (shouldCheckSequence(session, state.segmentEnd)) {
+    startSequenceCheck(session, state.segmentEnd);
   } else {
     advanceToNextSentence(session);
   }
@@ -264,9 +276,8 @@ export function repeatCurrentTask(session) {
 
   const next = remember(session);
   if (next.state.phase === 'learn') {
-    const block = currentBlockFor(next, next.state.current);
     next.state.phase = 'block';
-    next.state.segmentStart = block.start;
+    next.state.segmentStart = Math.max(0, next.state.current - ROLLING_WINDOW_SIZE + 1);
     next.state.segmentEnd = next.state.current;
   }
   resetPresentation(next.state);

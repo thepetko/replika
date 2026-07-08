@@ -24,7 +24,7 @@ Relácia obsahuje:
   blocks: [],
   status: 'active' | 'done',
   state: {
-    phase: 'learn' | 'bridge' | 'block' | 'all',
+    phase: 'learn' | 'bridge' | 'block' | 'checkpoint' | 'all',
     current: 0,
     knownEnd: -1,
     segmentStart: 0,
@@ -45,7 +45,8 @@ História uchováva najviac 50 predchádzajúcich stavov.
 
 - `learn` – jedna nová veta,
 - `bridge` – krátky prechod medzi susednými vetami,
-- `block` – súvislý rastúci úsek,
+- `block` – posuvný súvislý úsek najviac piatich viet,
+- `checkpoint` – kumulatívna kontrola doteraz naučenej časti,
 - `all` – celá replika.
 
 Používateľ fázu nevyberá. Rozhranie ju prekladá na jednoduchý pokyn pre aktuálny krok.
@@ -56,7 +57,8 @@ Používateľ fázu nevyberá. Rozhranie ju prekladá na jednoduchý pokyn pre a
 
 - Po prvej vete sa pokračuje ďalšou vetou.
 - Po ďalšej novej vete sa preverí prechod s bezprostredne predchádzajúcou vetou.
-- Po troch vetách alebo na prirodzenom konci bloku sa preverí rastúci blok.
+- Po troch vetách alebo na prirodzenom konci bloku sa preverí súvislý úsek najviac posledných piatich viet.
+- Po každej piatej novej vete sa preverí doteraz naučená časť od začiatku.
 - Hranica bloku nezruší sekvenčný kontext: prvá veta nového bloku sa spojí s poslednou vetou predchádzajúceho bloku.
 - Po poslednom bloku sa preverí celá replika.
 - Jednovetová replika prejde po prvom úspechu priamo na záverečné preverenie celej repliky.
@@ -82,11 +84,13 @@ Po prvom dokončení dostane replika termín na nasledujúci miestny deň. Kontr
 
 `src/parser.js` zachováva prázdny riadok ako hranicu prirodzeného bloku. Jednoduché zalomenie riadka bez interpunkcie spojí medzerou, takže text nestratí. Parser podporuje koncové úvodzovky, viacbodku, kombinované otázniky a výkričníky a malú množinu bežných skratiek.
 
-Parser nie je plnohodnotný jazykový analyzátor. Menej bežné skratky, scénické poznámky a neštandardná interpunkcia zostávajú otvorenými prípadmi.
+Text uzavretý v zátvorkách sa považuje za scénickú poznámku. Samostatná poznámka sa pripojí k nasledujúcej hovorenej vete; ak je na konci textu, k predchádzajúcej. Pri vybavovaní z pamäti zostane poznámka viditeľná a maskujú sa iba hovorené slová.
+
+Parser nie je plnohodnotný jazykový analyzátor. Menej bežné skratky, vnorené zátvorky a neštandardná interpunkcia zostávajú otvorenými prípadmi.
 
 ## Známe limity
 
 1. `knownEnd` stále vyjadruje lineárne pokrytie, nie mieru dlhodobého zvládnutia.
 2. Pri chybe v dlhom úseku aplikácia nevie, na ktorej konkrétnej vete sa používateľ pomýlil; bezpečne vyberie koncový prechod.
-3. Veľmi dlhý prirodzený blok sa po prvých troch vetách začne deliť rastúcim spôsobom, no nemá samostatný editor významových hraníc.
-4. Po obnovení stránky sa obnoví iba vložený text, nie rozpracovaný stav relácie.
+3. Päťvetové okno je pevná konzervatívna heuristika; aplikácia zatiaľ nemá editor významových hraníc.
+4. Zmena parserovej verzie automaticky neprepisuje už rozpracovanú reláciu. Nové spracovanie sa použije po začatí odznova.

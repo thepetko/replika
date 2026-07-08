@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { closeMenusOutside } from '../src/ui-interactions.js';
+import { closeMenusOutside, maskMemorizedText } from '../src/ui-interactions.js';
 
 function fakeMenu(containsTarget) {
   return {
@@ -28,4 +28,22 @@ test('kliknutie v otvorenej ponuke ju nezavrie', () => {
   closeMenusOutside(root, {});
 
   assert.equal(menu.closed, false);
+});
+
+test('scénická poznámka zostane pri skrytí textu viditeľná', () => {
+  assert.equal(
+    maskMemorizedText('(Vstane.) Odchádzam.', 0),
+    '(Vstane.) ••••••'
+  );
+  assert.equal(
+    maskMemorizedText('(Vstane.) Odchádzam.', 1),
+    '(Vstane.) O…'
+  );
+});
+
+test('nápoveda počíta iba slová mimo scénických poznámok', () => {
+  assert.equal(
+    maskMemorizedText('Dnes (ticho) odídem veľmi ďaleko.', 2),
+    'Dnes (ticho) odídem veľmi …'
+  );
 });

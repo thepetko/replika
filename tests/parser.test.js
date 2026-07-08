@@ -62,3 +62,28 @@ test('text bez koncovej interpunkcie zostane jednou vetou', () => {
     blocks: [{ start: 0, end: 0 }]
   });
 });
+
+test('scénická poznámka sa pripojí k nasledujúcej hovorenej vete', () => {
+  const parsed = parseText('(Vstane.) Odchádzam. Zastaví sa.');
+
+  assert.deepEqual(parsed.sentences, [
+    '(Vstane.) Odchádzam.',
+    'Zastaví sa.'
+  ]);
+});
+
+test('koncová scénická poznámka sa pripojí k predchádzajúcej vete', () => {
+  const parsed = parseText('Odchádzam. (Zhasne svetlo.)');
+
+  assert.deepEqual(parsed.sentences, [
+    'Odchádzam. (Zhasne svetlo.)'
+  ]);
+});
+
+test('viaceré scénické poznámky nikdy nevytvoria izolovanú úlohu', () => {
+  const parsed = parseText('(Vstane.) (Pozrie na dvere.) Odchádzam.');
+
+  assert.deepEqual(parsed.sentences, [
+    '(Vstane.) (Pozrie na dvere.) Odchádzam.'
+  ]);
+});

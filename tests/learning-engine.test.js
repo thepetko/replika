@@ -22,6 +22,16 @@ function rate(session, rating = 'good') {
   return rateCurrentTask(session, rating);
 }
 
+function advanceUntil(session, predicate, limit = 100) {
+  let current = session;
+  for (let step = 0; step < limit; step += 1) {
+    const task = getCurrentTask(current);
+    if (task && predicate(task)) return current;
+    current = rate(current);
+  }
+  throw new Error('Hľadaný stav sa v limite krokov nenašiel.');
+}
+
 test('jedna veta prejde cez celú repliku až do konca', () => {
   let session = createSession(parsed(1));
   assert.equal(getCurrentTask(session).phase, 'learn');
@@ -56,6 +66,32 @@ test('po troch nových vetách preverí rastúci blok', () => {
 
   assert.equal(getCurrentTask(session).phase, 'block');
   assert.deepEqual(getCurrentTask(session).range, { start: 0, end: 2 });
+});
+
+test('dlhá replika strieda päťvetové okno s kumulatívnou kontrolou', () => {
+  let session = createSession(parsed(12));
+  session = advanceUntil(session, task => task.phase === 'checkpoint' && task.range.end === 4);
+  assert.deepEqual(getCurrentTask(session).range, { start: 0, end: 4 });
+
+  session = rate(session);
+  session = advanceUntil(session, task => task.phase === 'block' && task.range.end === 5);
+  assert.deepEqual(getCurrentTask(session).range, { start: 1, end: 5 });
+
+  session = rate(session);
+  session = advanceUntil(session, task => task.phase === 'checkpoint' && task.range.end === 9);
+  assert.deepEqual(getCurrentTask(session).range, { start: 0, end: 9 });
+});
+
+test('piata veta spustí kumulatívnu kontrolu aj za hranicou bloku', () => {
+  const session = advanceUntil(
+    createSession(parsed(7, [
+      { start: 0, end: 3 },
+      { start: 4, end: 6 }
+    ])),
+    task => task.phase === 'checkpoint' && task.range.end === 4
+  );
+
+  assert.deepEqual(getCurrentTask(session).range, { start: 0, end: 4 });
 });
 
 test('opakované Neviem zachová problémovú vetu s dostupným kontextom', () => {

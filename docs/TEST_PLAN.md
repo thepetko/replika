@@ -43,6 +43,7 @@ Jednoduché zalomenie bez interpunkcie sa nahradí medzerou. Nevytvorí samostat
 - tri bodky,
 - otáznik a výkričník spolu,
 - skratky,
+- scénické poznámky na začiatku, na konci a viac poznámok za sebou,
 - prázdny text,
 - text s jednou vetou.
 
@@ -62,8 +63,10 @@ Pre 5 viet:
 2. veta 2,
 3. prechod 1–2,
 4. ďalšia veta,
-5. po približne troch vetách blok,
-6. žiadna veta sa nesmie objaviť náhodne mimo poradia.
+5. po približne troch vetách súvislý úsek,
+6. po piatej novej vete kumulatívna kontrola od začiatku,
+7. medzi kumulatívnymi kontrolami najviac posledných päť viet,
+8. žiadna veta sa nesmie objaviť náhodne mimo poradia.
 
 ## Chyba na novej vete
 
@@ -75,11 +78,18 @@ Pri `Neviem` na vete 4:
 
 ## Chyba v bloku
 
-Pri chybe vo vetách 1–5:
+Pri chybe v päťvetovom alebo kumulatívnom úseku:
 
-- systém má zmenšiť úsek okolo konca alebo problémového miesta,
+- pri `Neviem` systém zachová celý úsek, pretože nepozná presné miesto chyby,
 - nesmie vytiahnuť jednu náhodnú vetu bez kontextu,
-- po úspechu sa má bezpečne vrátiť k rastúcemu bloku.
+- po úspechu má pokračovať v pôvodnom poradí.
+
+## Scénické poznámky
+
+- poznámka v zátvorkách nesmie vytvoriť izolovanú učebnú úlohu,
+- musí byť spojená s hovorenou vetou,
+- pri skrytí hovoreného textu zostáva poznámka viditeľná,
+- nápoveda počíta iba slová mimo zátvoriek.
 
 ## Viac prirodzených blokov
 

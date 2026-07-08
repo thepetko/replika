@@ -44,6 +44,27 @@ test('uloží a znovu načíta celú knižnicu', () => {
   assert.equal(loaded.updatedAt, '2026-07-08T10:00:00.000Z');
 });
 
+test('uloží a obnoví reláciu v kumulatívnej kontrole', () => {
+  const storage = memoryStorage();
+  const data = createEmptyAppData();
+  data.rehearsals.push({
+    id: 'r-checkpoint',
+    title: 'Dlhá replika',
+    text: 'Päť viet.',
+    session: {
+      sentences: ['1.', '2.', '3.', '4.', '5.'],
+      blocks: [{ start: 0, end: 4 }],
+      state: { phase: 'checkpoint' },
+      status: 'active',
+      history: []
+    }
+  });
+
+  saveAppData(data, storage, '2026-07-08T10:00:00.000Z');
+
+  assert.equal(loadAppData(storage).rehearsals[0].session.state.phase, 'checkpoint');
+});
+
 test('starý replikaText sa migruje až po výslovnom volaní', () => {
   const storage = memoryStorage({ [LEGACY_TEXT_KEY]: 'Starý text.' });
   const original = loadAppData(storage);

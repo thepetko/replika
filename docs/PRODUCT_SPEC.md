@@ -17,7 +17,7 @@ Cieľom je vytvoriť jednoduchého trénera, ktorý:
 1. Používateľ vloží jednu repliku alebo monológ.
 2. Nástroj rozdelí text na vety a prirodzené bloky.
 3. Zobrazí jednu vetu.
-4. Používateľ ju skryje a povie nahlas.
+4. Používateľ zvolí `Skúsiť spamäti`; aplikácia text skryje, aby pri vybavovaní nerušil.
 5. Odkryje správne znenie.
 6. Označí výsledok:
    - `Neviem`
@@ -26,7 +26,8 @@ Cieľom je vytvoriť jednoduchého trénera, ktorý:
 7. Nástroj automaticky:
    - zopakuje vetu v kontexte,
    - precvičí prechod medzi vetami,
-   - spojí viac viet do bloku,
+   - spojí najviac päť posledných viet do súvislého úseku,
+   - po každej piatej novej vete preverí doteraz naučenú časť od začiatku,
    - alebo pokračuje ďalej.
 8. Na konci sa precvičí celá replika.
 
@@ -85,6 +86,7 @@ Dôležité sú:
 - vloženie zo schránky,
 - delenie na vety,
 - prázdny riadok ako hranica bloku,
+- scénické poznámky v zátvorkách pripojené k hovorenej vete a ponechané viditeľné,
 - skrytie a odkrytie textu,
 - dvojúrovňová nápoveda,
 - sebahodnotenie,
@@ -92,6 +94,7 @@ Dôležité sú:
   - nová veta,
   - prechod,
   - blok,
+  - kumulatívna kontrola po piatich nových vetách,
   - celá replika,
 - návrat o krok,
 - zopakovanie aktuálneho úseku,

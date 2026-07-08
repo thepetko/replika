@@ -1,5 +1,7 @@
 const PROTECTED_DOT = '\uE000';
-export const PARSER_VERSION = 2;
+const PROTECTED_QUESTION = '\uE001';
+const PROTECTED_EXCLAMATION = '\uE002';
+export const PARSER_VERSION = 3;
 const COMMON_ABBREVIATIONS = [
   'p.', 'pp.', 'napr.', 'atď.', 'resp.', 'tzv.', 'č.', 'ods.',
   'prof.', 'doc.', 'ing.', 'mgr.', 'dr.'
@@ -25,13 +27,31 @@ function protectAbbreviations(text) {
   return protectedText;
 }
 
+function protectStageDirections(text) {
+  return text.replace(/\([^()]*\)/g, direction => direction
+    .replaceAll('.', PROTECTED_DOT)
+    .replaceAll('?', PROTECTED_QUESTION)
+    .replaceAll('!', PROTECTED_EXCLAMATION));
+}
+
+function restoreProtectedPunctuation(text) {
+  return text
+    .replaceAll(PROTECTED_DOT, '.')
+    .replaceAll(PROTECTED_QUESTION, '?')
+    .replaceAll(PROTECTED_EXCLAMATION, '!');
+}
+
+function isStageDirectionOnly(sentence) {
+  return /^\([^()]*\)$/s.test(sentence.trim());
+}
+
 function splitBlock(rawBlock) {
   const normalized = rawBlock.replace(/\s+/g, ' ').trim();
-  const protectedText = protectAbbreviations(normalized);
+  const protectedText = protectStageDirections(protectAbbreviations(normalized));
   const matches = protectedText.match(/[^.!?]+(?:[.!?]+["“”’»]?|$)/g) ?? [];
 
   return matches
-    .map(sentence => sentence.replaceAll(PROTECTED_DOT, '.').trim())
+    .map(sentence => restoreProtectedPunctuation(sentence).trim())
     .filter(Boolean);
 }
 
@@ -44,14 +64,28 @@ export function parseText(text) {
 
   const sentences = [];
   const blocks = [];
+  let pendingDirections = [];
 
   for (const rawBlock of rawBlocks) {
-    const blockSentences = splitBlock(rawBlock);
+    const blockSentences = [];
+    for (const sentence of splitBlock(rawBlock)) {
+      if (isStageDirectionOnly(sentence)) {
+        pendingDirections.push(sentence);
+        continue;
+      }
+
+      blockSentences.push([...pendingDirections, sentence].join(' '));
+      pendingDirections = [];
+    }
     if (!blockSentences.length) continue;
 
     const start = sentences.length;
     sentences.push(...blockSentences);
     blocks.push({ start, end: sentences.length - 1 });
+  }
+
+  if (pendingDirections.length && sentences.length) {
+    sentences[sentences.length - 1] += ` ${pendingDirections.join(' ')}`;
   }
 
   return { sentences, blocks };

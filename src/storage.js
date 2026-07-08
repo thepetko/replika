@@ -19,7 +19,7 @@ function validateSession(session) {
   if (!session.sentences.every(sentence => typeof sentence === 'string')) {
     throw new Error('Učebná relácia obsahuje neplatné vety.');
   }
-  if (!isPlainObject(session.state) || !['learn', 'bridge', 'block', 'all'].includes(session.state.phase)) {
+  if (!isPlainObject(session.state) || !['learn', 'bridge', 'block', 'checkpoint', 'all'].includes(session.state.phase)) {
     throw new Error('Učebná relácia obsahuje neplatný stav.');
   }
   if (!['active', 'done'].includes(session.status) || !Array.isArray(session.history)) {

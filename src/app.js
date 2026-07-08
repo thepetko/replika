@@ -20,7 +20,7 @@ import {
   saveAppData,
   validateBackup
 } from './storage.js';
-import { closeMenusOutside } from './ui-interactions.js';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -412,6 +412,7 @@ function openRehearsal(id, restart = false) {
 function titleForTask(task, total) {
   if (task.phase === 'learn') return `Veta ${task.range.start + 1} z ${total}`;
   if (task.phase === 'bridge') return `Krátky prechod · ${task.range.start + 1}–${task.range.end + 1}`;
+  if (task.phase === 'checkpoint') return `Kontrola doteraz · 1–${task.range.end + 1}`;
   if (task.phase === 'block') return `Súvislý úsek · ${task.range.start + 1}–${task.range.end + 1}`;
   return 'Celá replika';
 }
@@ -423,16 +424,11 @@ function instructionForTask(task, kind) {
       ? 'Kontrola po odstupe: povedz celú repliku bez predchádzajúceho čítania.'
       : 'Povedz text nahlas spamäti. Potom odkry správne znenie.';
   }
-  if (task.phase === 'learn') return 'Prečítaj si vetu. Potom ju skry a povedz spamäti.';
+  if (task.phase === 'learn') return 'Prečítaj si vetu. Keď si pripravený, skús ju povedať spamäti.';
   if (task.phase === 'bridge') return 'Prečítaj si prechod. Potom ho povedz v súvislosti.';
+  if (task.phase === 'checkpoint') return 'Prepoj doteraz naučenú časť od začiatku. Scénické poznámky sú iba viditeľný kontext.';
   if (task.phase === 'block') return 'Prečítaj si úsek. Potom ho skús povedať bez textu.';
   return 'Prečítaj si repliku. Potom ju povedz celú bez textu.';
-}
-
-function maskedText(text, hintLevel) {
-  if (hintLevel === 1) return text.split(/\s+/).map(word => word[0] ? `${word[0]}…` : '').join(' ');
-  if (hintLevel === 2) return `${text.split(/\s+/).slice(0, 3).join(' ')} …`;
-  return '••••••';
 }
 
 function renderContext(rehearsal, task) {
@@ -471,13 +467,13 @@ function renderTraining() {
   byId('trainingProgress').setAttribute('aria-valuenow', String(percentage));
 
   const isRecall = task.display === 'recall';
-  byId('sentence').textContent = isRecall ? maskedText(task.text, task.hintLevel) : task.text;
+  byId('sentence').textContent = isRecall ? maskMemorizedText(task.text, task.hintLevel) : task.text;
   byId('sentence').classList.toggle('masked', isRecall);
 
   const isRating = task.display === 'rate';
   byId('presentationControls').classList.toggle('hidden', isRating);
   byId('ratingBox').classList.toggle('hidden', !isRating);
-  byId('presentationBtn').textContent = isRecall ? 'Odkryť správny text' : 'Skryť a skúsiť spamäti';
+  byId('presentationBtn').textContent = isRecall ? 'Odkryť správny text' : 'Skúsiť spamäti';
   byId('hintBtn').disabled = !isRecall || task.hintLevel >= 2;
   byId('backStepBtn').disabled = rehearsal.session.history.length === 0;
   if (isRating) byId('ratingBox').querySelector('button').focus();
