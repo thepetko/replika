@@ -1,0 +1,8 @@
+{
+  "name": "ucenie-divadelnych-replik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

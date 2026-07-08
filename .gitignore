@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+*.pyc
+*.log
+replika-backup-*.json
+replika-pred-importom-*.json
+.DS_Store
+Thumbs.db

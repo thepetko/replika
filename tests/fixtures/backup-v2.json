@@ -1,0 +1,36 @@
+{
+  "backupType": "replika-full-backup",
+  "schemaVersion": 2,
+  "exportedAt": "2026-07-08T12:00:00.000Z",
+  "data": {
+    "schemaVersion": 2,
+    "updatedAt": "2026-07-08T12:00:00.000Z",
+    "rehearsals": [
+      {
+        "id": "import-test",
+        "title": "Importovaná skúška",
+        "text": "Táto veta prišla zo zálohy.",
+        "status": "completed",
+        "reviewDueAt": "2020-01-01T00:00:00.000Z",
+        "reviewCompletedAt": null,
+        "session": null,
+        "parsed": null,
+        "stats": {
+          "activeSeconds": 60,
+          "completedRuns": 1,
+          "assistedAttempts": 0
+        }
+      }
+    ],
+    "activity": {
+      "days": {
+        "2026-07-08": {
+          "totalSeconds": 120,
+          "byRehearsal": {
+            "import-test": 60
+          }
+        }
+      }
+    }
+  }
+}

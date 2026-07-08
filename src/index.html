@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Jednoduchý lokálny tréner divadelných replík so zachovaním kontextu.">
+  <meta name="theme-color" content="#f4f3ef">
+  <title>Replika – učenie divadelných textov</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
+
+<div class="app-shell">
+  <header class="app-header">
+    <button class="brand-button" id="brandButton" type="button" aria-label="Otvoriť knižnicu replík">
+      <span class="brand-mark" aria-hidden="true">R</span>
+      <span>REPLIKA</span>
+    </button>
+    <div class="header-actions">
+      <div class="today-time" id="todayTime" aria-live="polite">Dnes 0 min</div>
+      <details class="app-menu" id="appMenu">
+        <summary aria-label="Otvoriť menu">•••</summary>
+        <div class="menu-panel">
+          <button id="exportBtn" type="button">Exportovať zálohu</button>
+          <button id="importBtn" type="button">Importovať zálohu</button>
+        </div>
+      </details>
+      <input id="importFile" type="file" accept="application/json,.json" hidden tabindex="-1">
+    </div>
+  </header>
+
+  <main id="mainContent" tabindex="-1">
+    <section class="view" id="libraryView" aria-labelledby="libraryHeading">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Tvoje texty</p>
+          <h1 id="libraryHeading">Repliky</h1>
+        </div>
+        <button class="icon-button primary" id="newRehearsalBtn" type="button" aria-label="Pridať novú repliku">+</button>
+      </div>
+
+      <aside class="notice hidden" id="legacyBanner" aria-labelledby="legacyHeading">
+        <div>
+          <h2 id="legacyHeading">Našiel sa starší uložený text</h2>
+          <p>Môžeš ho bezpečne pridať do novej knižnice.</p>
+        </div>
+        <div class="compact-actions">
+          <button class="primary" id="importLegacyBtn" type="button">Pridať do knižnice</button>
+          <button class="text-button" id="dismissLegacyBtn" type="button">Neskôr</button>
+        </div>
+      </aside>
+
+      <p class="status-message" id="libraryMessage" role="status" aria-live="polite"></p>
+
+      <section class="editor-panel hidden" id="editorPanel" aria-labelledby="editorHeading">
+        <div class="section-heading">
+          <h2 id="editorHeading">Nová replika</h2>
+          <button class="text-button" id="cancelEditorBtn" type="button">Zrušiť</button>
+        </div>
+        <form id="rehearsalForm">
+          <label for="rehearsalTitle">Názov repliky</label>
+          <input id="rehearsalTitle" name="title" required maxlength="120" autocomplete="off">
+
+          <label for="rehearsalText">Text</label>
+          <textarea id="rehearsalText" name="text" required placeholder="Sem vlož celú repliku..."></textarea>
+
+          <details class="optional-fields">
+            <summary>Hra, postava a scéna <span>voliteľné</span></summary>
+            <div class="optional-grid">
+              <div>
+                <label for="rehearsalPlay">Hra</label>
+                <input id="rehearsalPlay" name="play" maxlength="120">
+              </div>
+              <div>
+                <label for="rehearsalCharacter">Postava</label>
+                <input id="rehearsalCharacter" name="character" maxlength="120">
+              </div>
+              <div>
+                <label for="rehearsalScene">Scéna</label>
+                <input id="rehearsalScene" name="scene" maxlength="120">
+              </div>
+            </div>
+          </details>
+
+          <div class="form-actions">
+            <button class="primary" type="submit">Uložiť repliku</button>
+            <button id="pasteTextBtn" type="button">Vložiť text zo schránky</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="empty-state hidden" id="emptyLibrary">
+        <div class="empty-symbol" aria-hidden="true">“</div>
+        <h2>Začni prvou replikou</h2>
+        <p>Text zostane iba v tomto prehliadači. Aplikácia ťa ním prevedie v pôvodnom poradí.</p>
+        <button class="primary" id="emptyAddBtn" type="button">Pridať repliku</button>
+      </div>
+
+      <div class="rehearsal-list" id="rehearsalList"></div>
+    </section>
+
+    <section class="view hidden" id="progressView" aria-labelledby="progressHeading">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Bez bodov a streakov</p>
+          <h1 id="progressHeading">Pokrok</h1>
+        </div>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric-card metric-card-dark">
+          <span>Dnes</span>
+          <strong id="statsToday">0 min</strong>
+        </article>
+        <article class="metric-card">
+          <span>Posledných 30 dní</span>
+          <strong id="stats30Days">0 min</strong>
+        </article>
+        <article class="metric-card">
+          <span>Celkovo</span>
+          <strong id="statsAllTime">0 min</strong>
+        </article>
+        <article class="metric-card">
+          <span>Dokončené tréningy</span>
+          <strong id="statsCompleted">0</strong>
+        </article>
+      </div>
+
+      <article class="week-card" aria-labelledby="weekHeading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">7 dní</p>
+            <h2 id="weekHeading">Čas v aplikácii</h2>
+          </div>
+          <strong id="stats7Days">0 min</strong>
+        </div>
+        <div class="week-chart" id="weekChart" aria-label="Čas učenia za posledných sedem dní"></div>
+      </article>
+
+      <section aria-labelledby="rehearsalStatsHeading">
+        <div class="section-heading">
+          <h2 id="rehearsalStatsHeading">Podľa replík</h2>
+        </div>
+        <div class="rehearsal-stats" id="rehearsalStats"></div>
+      </section>
+    </section>
+
+    <section class="view training-view hidden" id="trainingView" aria-labelledby="trainingHeading">
+      <div class="training-topbar">
+        <button class="back-button" id="backToLibraryBtn" type="button">← Repliky</button>
+        <div class="training-identity">
+          <h1 id="trainingHeading" tabindex="-1">Tréning</h1>
+          <p id="trainingMeta"></p>
+        </div>
+        <button class="text-button" id="restartTrainingBtn" type="button">Odznova</button>
+      </div>
+
+      <div class="training-progress-row">
+        <span class="status" id="statusText" aria-live="polite"></span>
+        <span id="coverageText"></span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="trainingProgress" role="progressbar" aria-label="Pokrytie repliky" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      </div>
+
+      <div class="training-card" id="activeTraining">
+        <p class="instruction" id="instruction" aria-live="polite"></p>
+        <div class="context hidden" id="contextBox"></div>
+        <div class="sentence" id="sentence"></div>
+
+        <div class="training-controls">
+          <div class="controls" id="presentationControls">
+            <button class="primary" id="presentationBtn" type="button">Skryť a skúsiť spamäti</button>
+            <button id="hintBtn" type="button">Nápoveda</button>
+          </div>
+          <div class="rating hidden" id="ratingBox" aria-label="Ako sa ti darilo?">
+            <button class="rating-bad" data-rating="bad" type="button"><span aria-hidden="true">×</span> Neviem</button>
+            <button class="rating-almost" data-rating="almost" type="button"><span aria-hidden="true">~</span> Takmer</button>
+            <button class="rating-good" data-rating="good" type="button"><span aria-hidden="true">✓</span> Viem</button>
+          </div>
+        </div>
+
+        <div class="training-secondary">
+          <button class="text-button" id="backStepBtn" type="button">← Krok späť</button>
+          <button class="text-button" id="repeatSegmentBtn" type="button">Zopakovať úsek</button>
+        </div>
+      </div>
+
+      <div class="completion-card hidden" id="completionCard" tabindex="-1">
+        <div class="completion-mark" aria-hidden="true">✓</div>
+        <h2 id="completionTitle">Replika prejdená</h2>
+        <p id="completionText"></p>
+        <div class="form-actions centered">
+          <button class="primary" id="completionLibraryBtn" type="button">Späť do knižnice</button>
+          <button id="completionRestartBtn" type="button">Začať odznova</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" id="bottomNav" aria-label="Hlavná navigácia">
+    <button class="nav-item active" id="libraryNavBtn" type="button" aria-current="page">
+      <span class="nav-icon" aria-hidden="true">▤</span>
+      Repliky
+    </button>
+    <button class="nav-item" id="progressNavBtn" type="button">
+      <span class="nav-icon" aria-hidden="true">▥</span>
+      Pokrok
+    </button>
+  </nav>
+</div>
+
+<dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmHeading">
+  <form method="dialog">
+    <h2 id="confirmHeading">Potvrdenie</h2>
+    <p id="confirmMessage"></p>
+    <div class="form-actions">
+      <button class="primary" id="confirmAcceptBtn" value="confirm">Potvrdiť</button>
+      <button value="cancel">Zrušiť</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
