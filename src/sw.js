@@ -1,4 +1,4 @@
-const CACHE_NAME = 'replika-shell-v6';
+const CACHE_NAME = 'replika-shell-v12';
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,6 +7,8 @@ const APP_SHELL = [
   './app.js',
   './parser.js',
   './learning-engine.js',
+  './scene-parser.js',
+  './scene-learning-engine.js',
   './storage.js',
   './activity-tracker.js',
   './ui-interactions.js'
@@ -52,7 +54,10 @@ async function staleWhileRevalidate(request, event) {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
-  event.respondWith(event.request.mode === 'navigate'
+  const mustBeCurrent = event.request.mode === 'navigate'
+    || event.request.destination === 'script'
+    || event.request.destination === 'style';
+  event.respondWith(mustBeCurrent
     ? networkFirst(event.request)
     : staleWhileRevalidate(event.request, event));
 });

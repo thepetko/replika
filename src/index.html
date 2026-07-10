@@ -41,6 +41,11 @@
         <button class="icon-button primary" id="newRehearsalBtn" type="button" aria-label="Pridať novú repliku">+</button>
       </div>
 
+      <div class="library-tabs" role="tablist" aria-label="Typ textu">
+        <button id="rehearsalsTabBtn" class="active" type="button" role="tab" aria-selected="true">Repliky</button>
+        <button id="scenesTabBtn" type="button" role="tab" aria-selected="false">Scény</button>
+      </div>
+
       <aside class="notice hidden" id="legacyBanner" aria-labelledby="legacyHeading">
         <div>
           <h2 id="legacyHeading">Našiel sa starší uložený text</h2>
@@ -87,6 +92,27 @@
           <div class="form-actions">
             <button class="primary" type="submit">Uložiť repliku</button>
             <button id="pasteTextBtn" type="button">Vložiť text zo schránky</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="editor-panel hidden" id="sceneEditorPanel" aria-labelledby="sceneEditorHeading">
+        <div class="section-heading">
+          <h2 id="sceneEditorHeading">Nová scéna</h2>
+          <button class="text-button" id="cancelSceneEditorBtn" type="button">Zrušiť</button>
+        </div>
+        <form id="sceneForm">
+          <label for="sceneTitle">Názov scény</label>
+          <input id="sceneTitle" name="title" required maxlength="120" autocomplete="off">
+          <label for="sceneText">Scenár</label>
+          <textarea id="sceneText" name="text" required placeholder="ANNA: Prídem hneď.&#10;PETER: Čakám na teba.&#10;(Anna sa obzrie.)"></textarea>
+          <p class="field-help">Každú repliku začni menom postavy a dvojbodkou. Poznámky píš samostatne do zátvoriek.</p>
+          <div class="scene-preview hidden" id="scenePreview" aria-live="polite"></div>
+          <label for="sceneCharacter">Moja postava</label>
+          <select id="sceneCharacter" name="character" required disabled><option value="">Najprv vlož scenár</option></select>
+          <div class="form-actions">
+            <button class="primary" type="submit">Uložiť scénu</button>
+            <button id="pasteSceneBtn" type="button">Vložiť zo schránky</button>
           </div>
         </form>
       </section>
@@ -165,9 +191,10 @@
         <div class="progress-bar" id="trainingProgress" role="progressbar" aria-label="Pokrytie repliky" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
       </div>
 
-      <div class="training-card" id="activeTraining">
-        <p class="instruction" id="instruction" aria-live="polite"></p>
-        <div class="context hidden" id="contextBox"></div>
+        <div class="training-card" id="activeTraining">
+          <p class="instruction" id="instruction" aria-live="polite"></p>
+          <div class="scene-script hidden" id="sceneScript" aria-live="polite"></div>
+          <div class="context hidden" id="contextBox"></div>
         <div class="sentence" id="sentence"></div>
 
         <div class="training-controls">
@@ -204,6 +231,10 @@
     <button class="nav-item active" id="libraryNavBtn" type="button" aria-current="page">
       <span class="nav-icon" aria-hidden="true">▤</span>
       Repliky
+    </button>
+    <button class="nav-item" id="scenesNavBtn" type="button">
+      <span class="nav-icon" aria-hidden="true">▤</span>
+      Scény
     </button>
     <button class="nav-item" id="progressNavBtn" type="button">
       <span class="nav-icon" aria-hidden="true">▥</span>

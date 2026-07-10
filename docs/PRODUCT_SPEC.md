@@ -105,6 +105,12 @@ Dôležité sú:
 - jednodňová kontrola dokončenej repliky,
 - ovládanie klávesnicou.
 
+## Režim Scény
+
+Scéna je samostatný typ textu v knižnici. Vkladá sa vo formáte `MENO: replika`; pred uložením aplikácia ukáže rozpoznané postavy a používateľ vyberie svoju. Repliky kolegov a samostatné scénické poznámky zostávajú viditeľné počas celého tréningu.
+
+Vlastná replika sa učí ako jeden celok v pôvodnom poradí. Po dvoch nových vlastných replikách príde kontrola celej doteraz naučenej časti podľa nástupov kolegov. Na konci aj pri jednodňovej kontrole sa skúša celá scéna s vlastnými replikami skrytými. Režim jednotlivých replík tým nie je zmenený.
+
 ## Dlhodobejší smer
 
 Nástroj môže neskôr podporovať:

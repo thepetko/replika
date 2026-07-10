@@ -112,6 +112,16 @@ Pri chybe v päťvetovom alebo kumulatívnom úseku:
 - platný import nahradí knižnicu aj štatistiky,
 - pred importom sa vytvorí bezpečnostný export.
 
+## Scény
+
+- parser rozpozná riadky `MENO: replika`, viacriadkové pokračovanie a samostatné poznámky v zátvorkách,
+- scenár bez dvoch postáv alebo bez vybratej postavy sa neuloží,
+- vlastné repliky idú v poradí a kolegove repliky zostávajú viditeľné,
+- po dvoch nových vlastných replikách sa spustí kontrola doteraz naučenej časti,
+- chyba alebo `Takmer` ponechá rovnaký krok a správne znenie je dostupné pred ďalším pokusom,
+- záver aj jednodňová kontrola maskujú všetky vlastné repliky v celej scéne,
+- relácia sa obnoví v režime čítania, vybavovania aj hodnotenia.
+
 ## Čas a štatistiky
 
 - počíta sa iba viditeľná aplikácia,

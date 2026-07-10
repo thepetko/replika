@@ -94,3 +94,13 @@ Parser nie je plnohodnotný jazykový analyzátor. Menej bežné skratky, vnoren
 2. Pri chybe v dlhom úseku aplikácia nevie, na ktorej konkrétnej vete sa používateľ pomýlil; bezpečne vyberie koncový prechod.
 3. Päťvetové okno je pevná konzervatívna heuristika; aplikácia zatiaľ nemá editor významových hraníc.
 4. Zmena parserovej verzie automaticky neprepisuje už rozpracovanú reláciu. Nové spracovanie sa použije po začatí odznova.
+
+## Logika scén
+
+`src/scene-learning-engine.js` je samostatný čistý automat pre scénu. Pracuje s replikami postáv, nie s vetami. Stav obsahuje vybranú postavu, aktuálnu vlastnú repliku, zoznam už naučených miest, počet nových replík od poslednej kontroly a režim zobrazenia.
+
+- `learn` učí najbližšiu celú vlastnú repliku pri viditeľnom nástupe kolegu,
+- `checkpoint` po dvoch nových vlastných replikách maskuje všetky doteraz naučené vlastné repliky a preverí ich v poradí,
+- `all` maskuje všetky vlastné repliky v celej scéne pre záverečný alebo jednodňový priechod,
+- `Takmer`, `Neviem` a úspech po nápovede ponechajú rovnaký krok; správne znenie je pred ďalším pokusom viditeľné,
+- pri úspechu sa pokračuje výhradne k nasledujúcej vlastnej replike v scenári.

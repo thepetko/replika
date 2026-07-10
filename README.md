@@ -5,6 +5,7 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 ## Funkcie
 
 - lokálna knižnica viacerých replík,
+- samostatná knižnica scén s viditeľnými nástupmi kolegov,
 - presné pokračovanie rozpracovanej relácie,
 - názov a voliteľne hra, postava a scéna,
 - automatické učenie viet, päťvetových úsekov a pravidelných kontrol od začiatku,
@@ -17,6 +18,19 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 - bez účtu, cloudu a externých závislostí.
 
 Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho prehliadača. Medzi zariadeniami sa prenášajú exportom a importom backupu.
+
+## Scény
+
+V karte **Scény** vlož scenár v jednoduchom tvare:
+
+```text
+ANNA: Prídem hneď.
+PETER: Čakám na teba.
+(Anna sa obzrie.)
+ANNA: Už idem.
+```
+
+Nástroj ukáže rozpoznané postavy, vyberieš svoju a učíš sa vlastné repliky v pôvodnom poradí. Repliky kolegov a scénické poznámky zostávajú viditeľné ako kontext; po každých dvoch nových vlastných replikách príde rastúca kontrola doteraz naučenej časti.
 
 ## Najjednoduchšie spustenie vo Windows
 

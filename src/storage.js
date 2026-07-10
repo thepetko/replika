@@ -1,6 +1,6 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
 export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -27,6 +27,19 @@ function validateSession(session) {
   }
 }
 
+function validateSceneSession(session) {
+  if (session === null || session === undefined) return;
+  if (!isPlainObject(session) || !Array.isArray(session.entries) || typeof session.character !== 'string') {
+    throw new Error('Backup obsahuje neplatnú učebnú reláciu scény.');
+  }
+  if (!isPlainObject(session.state) || !['learn', 'checkpoint', 'all'].includes(session.state.phase)) {
+    throw new Error('Učebná relácia scény obsahuje neplatný stav.');
+  }
+  if (!['active', 'done'].includes(session.status) || !Array.isArray(session.history)) {
+    throw new Error('Učebná relácia scény obsahuje neplatnú históriu.');
+  }
+}
+
 export function createEmptyAppData() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -41,7 +54,7 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (value.schemaVersion !== SCHEMA_VERSION) {
+  if (![2, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -58,6 +71,15 @@ export function validateAppData(value) {
     }
     if (rehearsal.status !== undefined && !['draft', 'inProgress', 'completed', 'reviewDue', 'reviewVerified'].includes(rehearsal.status)) {
       throw new Error('Backup obsahuje neplatný stav repliky.');
+    }
+    const type = rehearsal.type ?? 'rehearsal';
+    if (!['rehearsal', 'scene'].includes(type)) throw new Error('Backup obsahuje neplatný typ textu.');
+    if (type === 'scene') {
+      if (typeof rehearsal.character !== 'string' || !isPlainObject(rehearsal.parsed) || !Array.isArray(rehearsal.parsed.entries)) {
+        throw new Error('Backup obsahuje neplatnú scénu.');
+      }
+      validateSceneSession(rehearsal.session);
+      continue;
     }
     if (rehearsal.parsed !== null && rehearsal.parsed !== undefined) {
       if (!isPlainObject(rehearsal.parsed) || !Array.isArray(rehearsal.parsed.sentences) || !Array.isArray(rehearsal.parsed.blocks)) {
@@ -76,7 +98,9 @@ export function validateAppData(value) {
     }
   }
 
-  return clone(value);
+  const normalized = clone(value);
+  normalized.schemaVersion = SCHEMA_VERSION;
+  return normalized;
 }
 
 export function loadAppData(storage = globalThis.localStorage) {
@@ -157,7 +181,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (backup.schemaVersion !== SCHEMA_VERSION) {
+  if (![2, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

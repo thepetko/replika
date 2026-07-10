@@ -10,6 +10,11 @@ import {
   repeatCurrentTask
 } from './learning-engine.js';
 import { parseText, PARSER_VERSION } from './parser.js';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js';
+import {
+  advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
+  giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
+} from './scene-learning-engine.js';
 import {
   createBackup,
   createEmptyAppData,
@@ -34,6 +39,8 @@ let storageHealthy = true;
 let currentView = 'library';
 let currentRehearsalId = null;
 let editingRehearsalId = null;
+let editingType = 'rehearsal';
+let activeLibraryTab = 'rehearsal';
 let legacyDismissed = false;
 
 function nowIso() {
@@ -46,6 +53,7 @@ function newId() {
 
 function normalizeRehearsal(rehearsal) {
   return {
+    type: rehearsal.type ?? 'rehearsal',
     id: rehearsal.id,
     title: rehearsal.title || 'Bez názvu',
     play: rehearsal.play ?? '',
@@ -126,6 +134,15 @@ function refreshReviewStatuses() {
 }
 
 function ensureParsed(rehearsal) {
+  if (rehearsal.type === 'scene') {
+    if (rehearsal.parserVersion !== SCENE_PARSER_VERSION || !rehearsal.parsed) {
+      rehearsal.parsed = parseScene(rehearsal.text);
+      rehearsal.parserVersion = SCENE_PARSER_VERSION;
+      rehearsal.session = null;
+      if (rehearsal.status === 'inProgress') rehearsal.status = 'draft';
+    }
+    return rehearsal.parsed;
+  }
   if (rehearsal.parserVersion !== PARSER_VERSION || !rehearsal.parsed) {
     rehearsal.parsed = parseText(rehearsal.text);
     rehearsal.parserVersion = PARSER_VERSION;
@@ -162,6 +179,12 @@ function activitySecondsFor(rehearsalId) {
 }
 
 function coverageFor(rehearsal) {
+  if (rehearsal.type === 'scene') {
+    const total = rehearsal.parsed?.entries?.filter(entry => entry.type === 'speech' && entry.speaker === rehearsal.character).length ?? 0;
+    if (!total) return 0;
+    if (['completed', 'reviewDue', 'reviewVerified'].includes(rehearsal.status)) return 100;
+    return Math.round(((rehearsal.session?.state?.learnedIndices?.length ?? 0) / total) * 100);
+  }
   const sentenceCount = rehearsal.parsed?.sentences?.length ?? 0;
   if (!sentenceCount) return 0;
   if (['completed', 'reviewDue', 'reviewVerified'].includes(rehearsal.status)) return 100;
@@ -194,27 +217,43 @@ function showView(name) {
   }
   const inTraining = name === 'training';
   byId('bottomNav').classList.toggle('hidden', inTraining);
-  byId('libraryNavBtn').classList.toggle('active', name === 'library');
-  byId('progressNavBtn').classList.toggle('active', name === 'progress');
-  if (name === 'library') byId('libraryNavBtn').setAttribute('aria-current', 'page');
-  else byId('libraryNavBtn').removeAttribute('aria-current');
-  if (name === 'progress') byId('progressNavBtn').setAttribute('aria-current', 'page');
-  else byId('progressNavBtn').removeAttribute('aria-current');
+  const activeNav = name === 'progress' ? 'progress' : activeLibraryTab;
+  const navItems = {
+    rehearsal: byId('libraryNavBtn'),
+    scene: byId('scenesNavBtn'),
+    progress: byId('progressNavBtn')
+  };
+  for (const [key, button] of Object.entries(navItems)) {
+    const active = key === activeNav;
+    button.classList.toggle('active', active);
+    button.toggleAttribute('aria-current', active);
+  }
   tracker.setRehearsalId(inTraining ? currentRehearsalId : null);
   byId('mainContent').focus({ preventScroll: true });
 }
 
+function syncLibraryTabs() {
+  const scene = activeLibraryTab === 'scene';
+  byId('rehearsalsTabBtn').classList.toggle('active', !scene);
+  byId('rehearsalsTabBtn').setAttribute('aria-selected', String(!scene));
+  byId('scenesTabBtn').classList.toggle('active', scene);
+  byId('scenesTabBtn').setAttribute('aria-selected', String(scene));
+}
+
 function renderLibrary() {
   refreshReviewStatuses();
+  syncLibraryTabs();
   const list = byId('rehearsalList');
   list.replaceChildren();
-  const sorted = [...appData.rehearsals].sort((a, b) => {
+  const sorted = appData.rehearsals.filter(item => item.type === activeLibraryTab).sort((a, b) => {
     const aTime = a.lastOpenedAt ?? a.createdAt;
     const bTime = b.lastOpenedAt ?? b.createdAt;
     return String(bTime).localeCompare(String(aTime));
   });
 
-  byId('emptyLibrary').classList.toggle('hidden', sorted.length > 0 || !byId('editorPanel').classList.contains('hidden'));
+  byId('libraryHeading').textContent = activeLibraryTab === 'scene' ? 'Scény' : 'Repliky';
+  byId('newRehearsalBtn').setAttribute('aria-label', activeLibraryTab === 'scene' ? 'Pridať novú scénu' : 'Pridať novú repliku');
+  byId('emptyLibrary').classList.toggle('hidden', sorted.length > 0 || !byId('editorPanel').classList.contains('hidden') || !byId('sceneEditorPanel').classList.contains('hidden'));
   for (const rehearsal of sorted) list.append(createRehearsalCard(rehearsal));
 
   const legacyAvailable = Boolean(getLegacyText()) && !legacyDismissed;
@@ -227,7 +266,9 @@ function createRehearsalCard(rehearsal) {
   const top = element('div', 'card-topline');
   const titleGroup = element('div', 'card-title-group');
   const title = element('h2', '', rehearsal.title);
-  const metadata = [rehearsal.play, rehearsal.character, rehearsal.scene].filter(Boolean).join(' · ');
+  const metadata = rehearsal.type === 'scene'
+    ? [rehearsal.character, `${rehearsal.parsed?.entries?.filter(entry => entry.type === 'speech').length ?? 0} replík`].join(' · ')
+    : [rehearsal.play, rehearsal.character, rehearsal.scene].filter(Boolean).join(' · ');
   titleGroup.append(title);
   if (metadata) titleGroup.append(element('p', 'card-meta', metadata));
 
@@ -270,7 +311,7 @@ function createRehearsalCard(rehearsal) {
   const menuContent = element('div', 'card-menu-panel');
   const editButton = element('button', '', 'Upraviť');
   editButton.type = 'button';
-  editButton.addEventListener('click', () => openEditor(rehearsal.id));
+  editButton.addEventListener('click', () => rehearsal.type === 'scene' ? openSceneEditor(rehearsal.id) : openEditor(rehearsal.id));
   const deleteButton = element('button', 'danger-text', 'Odstrániť');
   deleteButton.type = 'button';
   deleteButton.addEventListener('click', () => deleteRehearsal(rehearsal.id));
@@ -284,6 +325,7 @@ function createRehearsalCard(rehearsal) {
 
 function openEditor(id = null) {
   editingRehearsalId = id;
+  editingType = 'rehearsal';
   const rehearsal = id ? findRehearsal(id) : null;
   byId('editorHeading').textContent = rehearsal ? 'Upraviť repliku' : 'Nová replika';
   byId('rehearsalTitle').value = rehearsal?.title ?? '';
@@ -299,8 +341,56 @@ function openEditor(id = null) {
 
 function closeEditor() {
   editingRehearsalId = null;
+  editingType = 'rehearsal';
   byId('rehearsalForm').reset();
   byId('editorPanel').classList.add('hidden');
+  byId('bottomNav').classList.remove('hidden');
+  renderLibrary();
+}
+
+function updateScenePreview() {
+  const preview = byId('scenePreview');
+  const select = byId('sceneCharacter');
+  const parsed = parseScene(byId('sceneText').value);
+  preview.replaceChildren();
+  select.replaceChildren();
+  if (parsed.errors.length) {
+    preview.textContent = parsed.errors[0];
+    preview.classList.remove('hidden');
+    select.append(new Option('Najprv oprav scenár', ''));
+    select.disabled = true;
+    return parsed;
+  }
+  preview.textContent = `Rozpoznané postavy: ${parsed.speakers.join(', ')} · ${parsed.entries.filter(entry => entry.type === 'speech').length} replík`;
+  preview.classList.remove('hidden');
+  select.append(new Option('Vyber postavu', ''));
+  for (const speaker of parsed.speakers) select.append(new Option(speaker, speaker));
+  select.disabled = false;
+  return parsed;
+}
+
+function openSceneEditor(id = null) {
+  editingRehearsalId = id;
+  editingType = 'scene';
+  const rehearsal = id ? findRehearsal(id) : null;
+  byId('sceneEditorHeading').textContent = rehearsal ? 'Upraviť scénu' : 'Nová scéna';
+  byId('sceneTitle').value = rehearsal?.title ?? '';
+  byId('sceneText').value = rehearsal?.text ?? '';
+  byId('sceneEditorPanel').classList.remove('hidden');
+  byId('editorPanel').classList.add('hidden');
+  updateScenePreview();
+  if (rehearsal?.character) byId('sceneCharacter').value = rehearsal.character;
+  byId('bottomNav').classList.add('hidden');
+  byId('emptyLibrary').classList.add('hidden');
+  byId('sceneTitle').focus();
+}
+
+function closeSceneEditor() {
+  editingRehearsalId = null;
+  editingType = 'rehearsal';
+  byId('sceneForm').reset();
+  byId('scenePreview').classList.add('hidden');
+  byId('sceneEditorPanel').classList.add('hidden');
   byId('bottomNav').classList.remove('hidden');
   renderLibrary();
 }
@@ -362,6 +452,29 @@ async function saveRehearsalFromForm(event) {
   if (persist('Replika bola uložená.')) closeEditor();
 }
 
+async function saveSceneFromForm(event) {
+  event.preventDefault();
+  const title = byId('sceneTitle').value.trim();
+  const text = byId('sceneText').value.trim();
+  const character = byId('sceneCharacter').value;
+  let parsed;
+  try { parsed = validateScene(parseScene(text), character); } catch (error) { setLibraryMessage(error.message, true); return; }
+  const existing = editingRehearsalId ? findRehearsal(editingRehearsalId) : null;
+  const changed = existing && (existing.text !== text || existing.character !== character);
+  if (changed && existing.session) {
+    const confirmed = await askConfirm('Zmena scenára alebo postavy vynuluje rozpracovaný postup tejto scény. Historický čas zostane zachovaný.', 'Zmeniť scénu');
+    if (!confirmed) return;
+  }
+  const timestamp = nowIso();
+  if (existing) {
+    Object.assign(existing, { title, text, character, parsed, parserVersion: SCENE_PARSER_VERSION, updatedAt: timestamp });
+    if (changed) Object.assign(existing, { session: null, status: 'draft', reviewDueAt: null, reviewCompletedAt: null });
+  } else {
+    appData.rehearsals.push(normalizeRehearsal({ id: newId(), type: 'scene', title, text, character, parsed, parserVersion: SCENE_PARSER_VERSION, createdAt: timestamp, updatedAt: timestamp }));
+  }
+  if (persist('Scéna bola uložená.')) closeSceneEditor();
+}
+
 async function deleteRehearsal(id) {
   const rehearsal = findRehearsal(id);
   if (!rehearsal) return;
@@ -387,6 +500,18 @@ function openRehearsal(id, restart = false) {
   const rehearsal = findRehearsal(id);
   if (!rehearsal) return;
   const parsed = ensureParsed(rehearsal);
+  if (rehearsal.type === 'scene') {
+    try { validateScene(parsed, rehearsal.character); } catch (error) { setLibraryMessage(error.message, true); return; }
+    const resumable = rehearsal.session?.status === 'active';
+    if (rehearsal.status === 'reviewDue' && (!resumable || rehearsal.session?.kind !== 'review') && !restart) {
+      rehearsal.session = createSceneReviewSession(parsed, rehearsal.character);
+    } else if (restart || !resumable) {
+      rehearsal.session = createSceneSession(parsed, rehearsal.character);
+      rehearsal.status = 'inProgress';
+    }
+    rehearsal.lastOpenedAt = nowIso(); rehearsal.updatedAt = rehearsal.lastOpenedAt; currentRehearsalId = rehearsal.id;
+    persist(); showView('training'); renderTraining(); byId('trainingHeading').focus(); return;
+  }
   if (!parsed.sentences.length) {
     setLibraryMessage('Táto replika nemá použiteľný text.', true);
     return;
@@ -447,8 +572,11 @@ function renderContext(rehearsal, task) {
 function renderTraining() {
   const rehearsal = currentRehearsal();
   if (!rehearsal?.session) return showLibrary();
+  if (rehearsal.type === 'scene') return renderSceneTraining(rehearsal);
 
   byId('trainingHeading').textContent = rehearsal.title;
+  byId('sceneScript').classList.add('hidden');
+  byId('sentence').classList.remove('hidden');
   byId('trainingMeta').textContent = [rehearsal.play, rehearsal.character, rehearsal.scene].filter(Boolean).join(' · ');
   const finished = rehearsal.session.status === 'done';
   byId('activeTraining').classList.toggle('hidden', finished);
@@ -479,6 +607,63 @@ function renderTraining() {
   if (isRating) byId('ratingBox').querySelector('button').focus();
 }
 
+function sceneInstruction(task, kind) {
+  if (task.display === 'rate') return 'Porovnaj svoj pokus so správnym priebehom.';
+  if (task.display === 'recall') return kind === 'review'
+    ? 'Povedz celú scénu podľa nástupov kolegov.'
+    : 'Povedz svoje repliky podľa nástupov kolegov. Potom odkry správny priebeh.';
+  if (task.phase === 'learn') return 'Prečítaj si zvýraznenú repliku. Potom ju povedz podľa nástupu kolegu.';
+  if (task.phase === 'checkpoint') return 'Prejdi od začiatku doteraz naučenú časť scény.';
+  return 'Prejdi celú scénu podľa nástupov kolegov.';
+}
+
+function renderSceneScript(rehearsal, task) {
+  const script = byId('sceneScript'); script.replaceChildren(); script.classList.remove('hidden');
+  const state = rehearsal.session.state;
+  for (const [index, entry] of rehearsal.session.entries.entries()) {
+    if (entry.type === 'direction') { script.append(element('p', 'scene-direction', entry.stageDirection)); continue; }
+    const row = element('article', `scene-line ${entry.speaker === rehearsal.character ? 'scene-own' : 'scene-partner'}`);
+    row.dataset.sceneIndex = String(index);
+    row.append(element('strong', 'scene-speaker', entry.speaker));
+    const text = element('p', 'scene-text');
+    const inScope = index <= task.scopeEnd;
+    const isOwn = entry.speaker === rehearsal.character;
+    const current = index === task.targetIndex;
+    const learned = task.learnedIndices.includes(index);
+    const inRound = isOwn && task.phase !== 'learn' && inScope;
+    const shouldMask = isOwn && (task.phase === 'learn'
+      ? (current ? task.display === 'recall' : !learned)
+      : (!inScope || task.display === 'recall'));
+    if (shouldMask) { text.textContent = maskMemorizedText(entry.text, current ? task.hintLevel : 0); text.classList.add('scene-masked'); }
+    else text.textContent = entry.text;
+    if (current) row.classList.add('scene-current');
+    if (inRound) row.classList.add('scene-round-target');
+    row.append(text); script.append(row);
+  }
+  const target = task.targetIndex ?? task.scopeEnd;
+  queueMicrotask(() => script.querySelector(`[data-scene-index="${target}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+}
+
+function renderSceneTraining(rehearsal) {
+  const finished = rehearsal.session.status === 'done';
+  byId('trainingHeading').textContent = rehearsal.title;
+  byId('trainingMeta').textContent = rehearsal.character;
+  byId('activeTraining').classList.toggle('hidden', finished); byId('completionCard').classList.toggle('hidden', !finished);
+  if (finished) return renderCompletion(rehearsal);
+  const task = getCurrentSceneTask(rehearsal.session);
+  byId('statusText').textContent = task.phase === 'learn' ? `Replika ${task.learnedIndices.length + 1} z ${task.totalOwn}` : task.phase === 'checkpoint' ? 'Kontrola doteraz' : 'Celá scéna';
+  byId('instruction').textContent = sceneInstruction(task, rehearsal.session.kind);
+  byId('contextBox').classList.add('hidden'); byId('sentence').classList.add('hidden');
+  renderSceneScript(rehearsal, task);
+  const percentage = Math.round((task.learnedIndices.length / task.totalOwn) * 100);
+  byId('coverageText').textContent = `${percentage} %`; byId('trainingProgress').style.width = `${percentage}%`; byId('trainingProgress').setAttribute('aria-valuenow', String(percentage));
+  const rating = task.display === 'rate'; byId('presentationControls').classList.toggle('hidden', rating); byId('ratingBox').classList.toggle('hidden', !rating);
+  byId('presentationBtn').textContent = task.display === 'recall' ? 'Odkryť správny priebeh' : 'Skúsiť spamäti';
+  byId('hintBtn').disabled = task.display !== 'recall' || task.hintLevel >= 2 || task.phase !== 'learn';
+  byId('backStepBtn').disabled = rehearsal.session.history.length === 0;
+  if (rating) byId('ratingBox').querySelector('button').focus();
+}
+
 function saveSessionAndRender() {
   const rehearsal = currentRehearsal();
   if (!rehearsal) return;
@@ -491,7 +676,9 @@ function handleRating(rating) {
   const rehearsal = currentRehearsal();
   if (!rehearsal?.session) return;
   const wasActive = rehearsal.session.status === 'active';
-  rehearsal.session = rateCurrentTask(rehearsal.session, rating);
+  rehearsal.session = rehearsal.type === 'scene'
+    ? rateSceneTask(rehearsal.session, rating)
+    : rateCurrentTask(rehearsal.session, rating);
   if (rehearsal.session.state.lastAttemptAssisted) rehearsal.stats.assistedAttempts += 1;
   if (wasActive && rehearsal.session.status === 'done') completeRehearsal(rehearsal);
   saveSessionAndRender();
@@ -513,10 +700,11 @@ function completeRehearsal(rehearsal) {
 
 function renderCompletion(rehearsal) {
   const reviewed = rehearsal.status === 'reviewVerified';
-  byId('completionTitle').textContent = reviewed ? 'Kontrola splnená' : 'Replika prejdená';
+  const label = rehearsal.type === 'scene' ? 'Scéna' : 'Replika';
+  byId('completionTitle').textContent = reviewed ? 'Kontrola splnená' : `${label} prejdená`;
   byId('completionText').textContent = reviewed
-    ? 'Celú repliku si vybavil po časovom odstupe.'
-    : 'Zajtra sa v knižnici objaví krátka kontrola bez predchádzajúceho čítania.';
+    ? `Celú ${label.toLowerCase()} si vybavil po časovom odstupe.`
+    : `Zajtra sa v knižnici objaví kontrola ${label.toLowerCase()} bez predchádzajúceho čítania.`;
   byId('completionCard').focus();
 }
 
@@ -638,12 +826,18 @@ const tracker = new VisibleActivityTracker({
 });
 
 byId('brandButton').addEventListener('click', showLibrary);
-byId('libraryNavBtn').addEventListener('click', showLibrary);
+byId('libraryNavBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
+byId('scenesNavBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; showLibrary(); });
 byId('progressNavBtn').addEventListener('click', showProgress);
-byId('newRehearsalBtn').addEventListener('click', () => openEditor());
-byId('emptyAddBtn').addEventListener('click', () => openEditor());
+byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; syncLibraryTabs(); renderLibrary(); });
+byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; syncLibraryTabs(); renderLibrary(); });
+byId('newRehearsalBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
+byId('emptyAddBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
 byId('cancelEditorBtn').addEventListener('click', closeEditor);
 byId('rehearsalForm').addEventListener('submit', saveRehearsalFromForm);
+byId('cancelSceneEditorBtn').addEventListener('click', closeSceneEditor);
+byId('sceneForm').addEventListener('submit', saveSceneFromForm);
+byId('sceneText').addEventListener('input', updateScenePreview);
 
 document.addEventListener('click', event => {
   closeMenusOutside(document, event.target);
@@ -656,6 +850,10 @@ byId('pasteTextBtn').addEventListener('click', async () => {
   } catch {
     setLibraryMessage('Prehliadač nepovolil vloženie. Použi príkaz Vložiť v zariadení.', true);
   }
+});
+byId('pasteSceneBtn').addEventListener('click', async () => {
+  try { byId('sceneText').value = await navigator.clipboard.readText(); updateScenePreview(); byId('sceneText').focus(); }
+  catch { setLibraryMessage('Prehliadač nepovolil vloženie. Použi príkaz Vložiť v zariadení.', true); }
 });
 
 byId('importLegacyBtn').addEventListener('click', () => {
@@ -693,25 +891,25 @@ byId('completionRestartBtn').addEventListener('click', () => openRehearsal(curre
 byId('presentationBtn').addEventListener('click', () => {
   const rehearsal = currentRehearsal();
   if (!rehearsal) return;
-  rehearsal.session = advancePresentation(rehearsal.session);
+  rehearsal.session = rehearsal.type === 'scene' ? advanceScenePresentation(rehearsal.session) : advancePresentation(rehearsal.session);
   saveSessionAndRender();
 });
 byId('hintBtn').addEventListener('click', () => {
   const rehearsal = currentRehearsal();
   if (!rehearsal) return;
-  rehearsal.session = giveHint(rehearsal.session);
+  rehearsal.session = rehearsal.type === 'scene' ? giveSceneHint(rehearsal.session) : giveHint(rehearsal.session);
   saveSessionAndRender();
 });
 byId('backStepBtn').addEventListener('click', () => {
   const rehearsal = currentRehearsal();
   if (!rehearsal) return;
-  rehearsal.session = goBack(rehearsal.session);
+  rehearsal.session = rehearsal.type === 'scene' ? goBackScene(rehearsal.session) : goBack(rehearsal.session);
   saveSessionAndRender();
 });
 byId('repeatSegmentBtn').addEventListener('click', () => {
   const rehearsal = currentRehearsal();
   if (!rehearsal) return;
-  rehearsal.session = repeatCurrentTask(rehearsal.session);
+  rehearsal.session = rehearsal.type === 'scene' ? repeatSceneTask(rehearsal.session) : repeatCurrentTask(rehearsal.session);
   saveSessionAndRender();
 });
 for (const button of document.querySelectorAll('[data-rating]')) {
@@ -723,10 +921,10 @@ document.addEventListener('keydown', event => {
   if (['TEXTAREA', 'INPUT', 'BUTTON', 'SUMMARY'].includes(document.activeElement?.tagName)) return;
   const rehearsal = currentRehearsal();
   if (!rehearsal?.session || rehearsal.session.status === 'done') return;
-  const task = getCurrentTask(rehearsal.session);
+  const task = rehearsal.type === 'scene' ? getCurrentSceneTask(rehearsal.session) : getCurrentTask(rehearsal.session);
   if (event.code === 'Space' && task.display !== 'rate') {
     event.preventDefault();
-    rehearsal.session = advancePresentation(rehearsal.session);
+    rehearsal.session = rehearsal.type === 'scene' ? advanceScenePresentation(rehearsal.session) : advancePresentation(rehearsal.session);
     saveSessionAndRender();
   } else if (task.display === 'rate') {
     const ratings = { '1': 'bad', '2': 'almost', '3': 'good' };

@@ -125,3 +125,21 @@ test('backup s poškodenou reláciou sa odmietne', () => {
     data
   }), /neplatný stav/);
 });
+
+test('migrácia schémy 2 zachová existujúcu repliku a prijme scénu', () => {
+  const old = createEmptyAppData();
+  old.schemaVersion = 2;
+  old.rehearsals.push({ id: 'old', title: 'Staré', text: 'Text.' });
+  const scene = {
+    id: 'scene', type: 'scene', title: 'Scéna', text: 'A: Ahoj\nB: Čau', character: 'A',
+    parsed: { entries: [{ type: 'speech', speaker: 'A', text: 'Ahoj' }, { type: 'speech', speaker: 'B', text: 'Čau' }] },
+    session: null
+  };
+  old.rehearsals.push(scene);
+  const storage = memoryStorage();
+  saveAppData(old, storage);
+  const loaded = loadAppData(storage);
+  assert.equal(loaded.schemaVersion, SCHEMA_VERSION);
+  assert.equal(loaded.rehearsals[0].title, 'Staré');
+  assert.equal(loaded.rehearsals[1].type, 'scene');
+});
