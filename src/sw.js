@@ -1,9 +1,11 @@
-const CACHE_NAME = 'replika-shell-v12';
+const CACHE_NAME = 'replika-shell-v13';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './favicon.svg',
+  './replika-logo.png',
+  './replika-mark.png',
   './app.js',
   './parser.js',
   './learning-engine.js',
