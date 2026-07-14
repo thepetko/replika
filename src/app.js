@@ -12,6 +12,14 @@ import {
 import { parseText, PARSER_VERSION } from './parser.js';
 import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js';
 import {
+  applyUnknownResolutions,
+  createPresenceScenes,
+  fingerprintScript,
+  normalizeScriptParagraphs,
+  recommendStandaloneRehearsals
+} from './script-importer.js';
+import { readDocxParagraphs } from './docx-reader.js';
+import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
 } from './scene-learning-engine.js';
@@ -42,6 +50,9 @@ let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
 let legacyDismissed = false;
+let scriptImportState = null;
+let selectionMode = false;
+const selectedRehearsalIds = new Set();
 
 function nowIso() {
   return new Date().toISOString();
@@ -59,6 +70,7 @@ function normalizeRehearsal(rehearsal) {
     play: rehearsal.play ?? '',
     character: rehearsal.character ?? '',
     scene: rehearsal.scene ?? '',
+    importFingerprint: rehearsal.importFingerprint ?? '',
     text: rehearsal.text ?? '',
     parserVersion: rehearsal.parserVersion ?? null,
     parsed: rehearsal.parsed ?? null,
@@ -243,6 +255,9 @@ function syncLibraryTabs() {
 function renderLibrary() {
   refreshReviewStatuses();
   syncLibraryTabs();
+  for (const id of selectedRehearsalIds) {
+    if (!findRehearsal(id)) selectedRehearsalIds.delete(id);
+  }
   const list = byId('rehearsalList');
   list.replaceChildren();
   const sorted = appData.rehearsals.filter(item => item.type === activeLibraryTab).sort((a, b) => {
@@ -253,6 +268,14 @@ function renderLibrary() {
 
   byId('libraryHeading').textContent = activeLibraryTab === 'scene' ? 'Scény' : 'Repliky';
   byId('newRehearsalBtn').setAttribute('aria-label', activeLibraryTab === 'scene' ? 'Pridať novú scénu' : 'Pridať novú repliku');
+  byId('sceneImportBtn').classList.toggle('hidden', activeLibraryTab !== 'scene');
+  const visibleIds = sorted.map(item => item.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedRehearsalIds.has(id));
+  byId('selectLibraryBtn').textContent = selectionMode ? 'Zrušiť výber' : 'Označiť';
+  byId('selectionActions').classList.toggle('hidden', !selectionMode);
+  byId('selectionCount').textContent = `${selectedRehearsalIds.size} označených`;
+  byId('selectAllLibraryBtn').textContent = allVisibleSelected ? 'Zrušiť označenie v karte' : 'Označiť všetko v karte';
+  byId('deleteSelectedBtn').disabled = selectedRehearsalIds.size === 0;
   byId('emptyLibrary').classList.toggle('hidden', sorted.length > 0 || !byId('editorPanel').classList.contains('hidden') || !byId('sceneEditorPanel').classList.contains('hidden'));
   for (const rehearsal of sorted) list.append(createRehearsalCard(rehearsal));
 
@@ -263,6 +286,8 @@ function renderLibrary() {
 
 function createRehearsalCard(rehearsal) {
   const card = element('article', 'rehearsal-card');
+  const selected = selectedRehearsalIds.has(rehearsal.id);
+  card.classList.toggle('selected', selectionMode && selected);
   const top = element('div', 'card-topline');
   const titleGroup = element('div', 'card-title-group');
   const title = element('h2', '', rehearsal.title);
@@ -275,6 +300,19 @@ function createRehearsalCard(rehearsal) {
   const [statusLabel, statusClass] = statusInfo(rehearsal);
   top.append(titleGroup, element('span', `status-chip ${statusClass}`, statusLabel));
 
+  if (selectionMode) {
+    const selector = element('label', 'card-selector');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox'; checkbox.checked = selected;
+    checkbox.setAttribute('aria-label', `Označiť ${rehearsal.title}`);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) selectedRehearsalIds.add(rehearsal.id);
+      else selectedRehearsalIds.delete(rehearsal.id);
+      renderLibrary();
+    });
+    selector.append(checkbox); top.prepend(selector);
+  }
+
   const coverage = coverageFor(rehearsal);
   const info = element('div', 'card-info');
   info.append(
@@ -285,6 +323,11 @@ function createRehearsalCard(rehearsal) {
   const bar = element('span');
   bar.style.width = `${coverage}%`;
   track.append(bar);
+
+  if (selectionMode) {
+    card.append(top, info, track);
+    return card;
+  }
 
   const actions = element('div', 'card-actions');
   const primary = element('button', 'primary');
@@ -395,6 +438,154 @@ function closeSceneEditor() {
   renderLibrary();
 }
 
+function importSourceTitle(name = '') {
+  return String(name).replace(/\.[^.]+$/u, '').trim() || 'Importovaný scenár';
+}
+
+function closeScriptImport() {
+  scriptImportState = null;
+  byId('scriptImportForm').reset();
+  byId('scriptImportPreview').replaceChildren();
+  byId('scriptImportCharacter').replaceChildren();
+  byId('scriptImportIssues').replaceChildren();
+  byId('scriptImportCandidates').replaceChildren();
+  byId('confirmScriptImportBtn').disabled = true;
+  byId('scriptImportPanel').classList.add('hidden');
+  byId('bottomNav').classList.remove('hidden');
+  renderLibrary();
+}
+
+function openScriptImport() {
+  editingRehearsalId = null;
+  byId('editorPanel').classList.add('hidden');
+  byId('sceneEditorPanel').classList.add('hidden');
+  byId('scriptImportPanel').classList.remove('hidden');
+  byId('bottomNav').classList.add('hidden');
+  byId('emptyLibrary').classList.add('hidden');
+  byId('scriptImportFileButton').focus();
+}
+
+function collectUnknownResolutions() {
+  return Object.fromEntries([...document.querySelectorAll('[data-import-unknown]')].map(select => [select.dataset.importUnknown, select.value]));
+}
+
+function renderScriptImportPreview() {
+  const preview = byId('scriptImportPreview');
+  const character = byId('scriptImportCharacter').value;
+  const issues = byId('scriptImportIssues');
+  const candidates = byId('scriptImportCandidates');
+  preview.replaceChildren(); issues.replaceChildren(); candidates.replaceChildren();
+  if (!scriptImportState) return;
+  const { document: parsedDocument, sourceTitle, fingerprint } = scriptImportState;
+  if (!character) {
+    preview.textContent = `Rozpoznané postavy: ${parsedDocument.speakers.join(', ')}. Vyber svoju postavu.`;
+    return;
+  }
+  scriptImportState.resolutions = { ...scriptImportState.resolutions, ...collectUnknownResolutions() };
+  const resolved = applyUnknownResolutions(parsedDocument, scriptImportState.resolutions, character);
+  const scenes = createPresenceScenes(resolved, character, { sourceTitle });
+  const recommended = recommendStandaloneRehearsals(scenes, character);
+  if (!scriptImportState.candidateSelectionInitialized) {
+    scriptImportState.selectedCandidates = new Set(recommended.map(candidate => candidate.sourceIndex));
+    scriptImportState.candidateSelectionInitialized = true;
+  }
+  scriptImportState.draft = { resolved, scenes, recommended };
+  const ownLines = scenes.reduce((count, scene) => count + scene.ownLines.length, 0);
+  const duplicate = appData.rehearsals.some(rehearsal => rehearsal.importFingerprint === fingerprint);
+  preview.append(element('strong', '', `${scenes.length} scén · ${ownLines} vlastných replík`));
+  preview.append(element('p', 'muted-copy', duplicate ? 'Tento scenár už bol pravdepodobne importovaný. Pokračovanie vytvorí ďalšie kópie.' : `Zdroj: ${sourceTitle}`));
+
+  if (parsedDocument.unknowns.length) {
+    issues.append(element('h3', '', 'Nejasné riadky'));
+    issues.append(element('p', 'field-help', 'Pred uložením urči, ako má nástroj s týmito riadkami naložiť.'));
+    for (const unknown of parsedDocument.unknowns) {
+      const row = element('div', 'import-choice');
+      row.append(element('p', '', unknown.text));
+      const select = element('select');
+      select.dataset.importUnknown = unknown.id;
+      select.setAttribute('aria-label', `Spracovanie riadka: ${unknown.text}`);
+      select.append(new Option('Zachovať ako poznámku', 'context'), new Option(`Priradiť postave ${character}`, 'character'), new Option('Vynechať', 'skip'));
+      select.value = scriptImportState.resolutions[unknown.id] ?? 'context';
+      select.addEventListener('change', () => renderScriptImportPreview());
+      row.append(select); issues.append(row);
+    }
+  }
+
+  if (recommended.length) {
+    candidates.append(element('h3', '', 'Navrhnuté samostatné tréningy'));
+    candidates.append(element('p', 'field-help', 'Replika ich neuloží bez tvojho zaškrtnutia.'));
+    for (const candidate of recommended) {
+      const row = element('label', 'import-choice import-candidate');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.value = String(candidate.sourceIndex);
+      checkbox.checked = scriptImportState.selectedCandidates.has(candidate.sourceIndex);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) scriptImportState.selectedCandidates.add(candidate.sourceIndex);
+        else scriptImportState.selectedCandidates.delete(candidate.sourceIndex);
+      });
+      const copy = element('span');
+      copy.append(element('strong', '', candidate.text), element('small', '', candidate.reasons.join(' · ')));
+      row.append(checkbox, copy); candidates.append(row);
+    }
+  } else {
+    candidates.append(element('p', 'field-help', 'Nenašli sa repliky, ktoré by podľa dĺžky a štruktúry vyžadovali samostatný tréning.'));
+  }
+  byId('confirmScriptImportBtn').disabled = scenes.length === 0;
+}
+
+function prepareScriptImport(paragraphs, sourceTitle) {
+  const parsedDocument = normalizeScriptParagraphs(paragraphs);
+  if (!parsedDocument.speakers.length) throw new Error('Scenár neobsahuje rozpoznateľné repliky v tvare MENO: text.');
+  scriptImportState = {
+    document: parsedDocument,
+    sourceTitle: importSourceTitle(sourceTitle),
+    fingerprint: fingerprintScript(paragraphs),
+    resolutions: {},
+    selectedCandidates: new Set(),
+    candidateSelectionInitialized: false,
+    draft: null
+  };
+  const select = byId('scriptImportCharacter');
+  select.replaceChildren(); select.append(new Option('Vyber postavu', ''));
+  for (const speaker of parsedDocument.speakers) select.append(new Option(speaker, speaker));
+  select.disabled = false;
+  byId('scriptImportPreview').classList.remove('hidden');
+  renderScriptImportPreview();
+}
+
+function confirmScriptImport() {
+  const state = scriptImportState;
+  const character = byId('scriptImportCharacter').value;
+  if (!state?.draft || !character) return;
+  const timestamp = nowIso();
+  const imported = [];
+  for (const scene of state.draft.scenes) {
+    const parsed = parseScene(scene.text);
+    try { validateScene(parsed, character); } catch { continue; }
+    imported.push(normalizeRehearsal({
+      id: newId(), type: 'scene', title: scene.title, play: state.sourceTitle, character, scene: scene.section,
+      text: scene.text, parsed, parserVersion: SCENE_PARSER_VERSION, importFingerprint: state.fingerprint,
+      createdAt: timestamp, updatedAt: timestamp
+    }));
+  }
+  const selected = new Set([...document.querySelectorAll('#scriptImportCandidates input[type="checkbox"]:checked')].map(input => Number(input.value)));
+  const selectedCandidates = state.draft.recommended.filter(candidate => selected.has(candidate.sourceIndex));
+  for (const [index, candidate] of selectedCandidates.entries()) {
+    const parsed = parseText(candidate.text);
+    if (!parsed.sentences.length) continue;
+    imported.push(normalizeRehearsal({
+      id: newId(), title: `${state.sourceTitle} · ${character} · replika ${index + 1}`, play: state.sourceTitle,
+      character, scene: 'Samostatný tréning', text: candidate.text, parsed, parserVersion: PARSER_VERSION,
+      importFingerprint: state.fingerprint, createdAt: timestamp, updatedAt: timestamp
+    }));
+  }
+  if (!imported.length) { setLibraryMessage('Import nevytvoril žiadnu použiteľnú scénu.', true); return; }
+  appData.rehearsals.push(...imported);
+  if (!persist(`Import pridal ${imported.filter(item => item.type === 'scene').length} scén a ${selectedCandidates.length} samostatných tréningov.`)) return;
+  activeLibraryTab = 'scene';
+  closeScriptImport();
+}
+
 async function saveRehearsalFromForm(event) {
   event.preventDefault();
   const title = byId('rehearsalTitle').value.trim();
@@ -486,6 +677,41 @@ async function deleteRehearsal(id) {
   appData.rehearsals = appData.rehearsals.filter(item => item.id !== id);
   for (const day of Object.values(appData.activity.days)) delete day.byRehearsal?.[id];
   persist('Replika bola odstránená.');
+  renderLibrary();
+}
+
+function toggleSelectionMode() {
+  selectionMode = !selectionMode;
+  if (!selectionMode) selectedRehearsalIds.clear();
+  renderLibrary();
+}
+
+function toggleSelectAllVisible() {
+  const visible = appData.rehearsals.filter(item => item.type === activeLibraryTab);
+  const allSelected = visible.length > 0 && visible.every(item => selectedRehearsalIds.has(item.id));
+  for (const rehearsal of visible) {
+    if (allSelected) selectedRehearsalIds.delete(rehearsal.id);
+    else selectedRehearsalIds.add(rehearsal.id);
+  }
+  renderLibrary();
+}
+
+async function deleteSelectedRehearsals() {
+  const ids = [...selectedRehearsalIds].filter(id => findRehearsal(id));
+  if (!ids.length) return;
+  const confirmed = await askConfirm(
+    `Odstrániť ${ids.length} označených položiek? Ich rozpracované učenie nebude možné obnoviť bez backupu.`,
+    'Odstrániť označené'
+  );
+  if (!confirmed) return;
+  const idSet = new Set(ids);
+  appData.rehearsals = appData.rehearsals.filter(item => !idSet.has(item.id));
+  for (const day of Object.values(appData.activity.days)) {
+    for (const id of ids) delete day.byRehearsal?.[id];
+  }
+  selectedRehearsalIds.clear();
+  selectionMode = false;
+  persist(`${ids.length} položiek bolo odstránených.`);
   renderLibrary();
 }
 
@@ -833,11 +1059,38 @@ byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'r
 byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; syncLibraryTabs(); renderLibrary(); });
 byId('newRehearsalBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
 byId('emptyAddBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
+byId('selectLibraryBtn').addEventListener('click', toggleSelectionMode);
+byId('selectAllLibraryBtn').addEventListener('click', toggleSelectAllVisible);
+byId('deleteSelectedBtn').addEventListener('click', deleteSelectedRehearsals);
+byId('sceneImportBtn').addEventListener('click', openScriptImport);
 byId('cancelEditorBtn').addEventListener('click', closeEditor);
 byId('rehearsalForm').addEventListener('submit', saveRehearsalFromForm);
 byId('cancelSceneEditorBtn').addEventListener('click', closeSceneEditor);
 byId('sceneForm').addEventListener('submit', saveSceneFromForm);
 byId('sceneText').addEventListener('input', updateScenePreview);
+byId('cancelScriptImportBtn').addEventListener('click', closeScriptImport);
+byId('scriptImportFileButton').addEventListener('click', () => byId('scriptImportFile').click());
+byId('scriptImportFile').addEventListener('change', async event => {
+  const [file] = event.target.files;
+  if (!file) return;
+  try {
+    prepareScriptImport(await readDocxParagraphs(file), file.name);
+    setLibraryMessage('DOCX je pripravený. Vyber svoju postavu.');
+  } catch (error) {
+    setLibraryMessage(`DOCX sa nepodarilo načítať: ${error.message}`, true);
+  }
+  event.target.value = '';
+});
+byId('prepareTextImportBtn').addEventListener('click', () => {
+  const text = byId('scriptImportText').value;
+  if (!text.trim()) { setLibraryMessage('Najprv vlož text scenára.', true); return; }
+  prepareScriptImport(text.split(/\r?\n/u).map(line => ({ text: line, style: '' })), 'Vložený scenár');
+});
+byId('scriptImportCharacter').addEventListener('change', () => {
+  if (scriptImportState) scriptImportState.candidateSelectionInitialized = false;
+  renderScriptImportPreview();
+});
+byId('confirmScriptImportBtn').addEventListener('click', confirmScriptImport);
 
 document.addEventListener('click', event => {
   closeMenusOutside(document, event.target);

@@ -37,12 +37,23 @@
           <p class="eyebrow">Tvoje texty</p>
           <h1 id="libraryHeading">Repliky</h1>
         </div>
-        <button class="icon-button primary" id="newRehearsalBtn" type="button" aria-label="Pridať novú repliku">+</button>
+        <div class="library-header-actions">
+          <button class="secondary" id="selectLibraryBtn" type="button">Označiť</button>
+          <button class="icon-button primary" id="newRehearsalBtn" type="button" aria-label="Pridať novú repliku">+</button>
+        </div>
       </div>
 
       <div class="library-tabs" role="tablist" aria-label="Typ textu">
         <button id="rehearsalsTabBtn" class="active" type="button" role="tab" aria-selected="true">Repliky</button>
         <button id="scenesTabBtn" type="button" role="tab" aria-selected="false">Scény</button>
+      </div>
+      <button class="secondary hidden" id="sceneImportBtn" type="button">Importovať celý scenár</button>
+      <div class="selection-actions hidden" id="selectionActions" aria-live="polite">
+        <span id="selectionCount">0 označených</span>
+        <div class="compact-actions">
+          <button id="selectAllLibraryBtn" type="button">Označiť všetko v karte</button>
+          <button class="danger-text" id="deleteSelectedBtn" type="button" disabled>Odstrániť označené</button>
+        </div>
       </div>
 
       <aside class="notice hidden" id="legacyBanner" aria-labelledby="legacyHeading">
@@ -112,6 +123,36 @@
           <div class="form-actions">
             <button class="primary" type="submit">Uložiť scénu</button>
             <button id="pasteSceneBtn" type="button">Vložiť zo schránky</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="editor-panel hidden" id="scriptImportPanel" aria-labelledby="scriptImportHeading">
+        <div class="section-heading">
+          <div>
+            <h2 id="scriptImportHeading">Importovať celý scenár</h2>
+            <p class="field-help">Vyber Word dokument alebo vlož jeho text. Scény sa uložia až po tvojej kontrole.</p>
+          </div>
+          <button class="text-button" id="cancelScriptImportBtn" type="button">Zrušiť</button>
+        </div>
+        <form id="scriptImportForm" onsubmit="return false;">
+          <div class="form-actions">
+            <button class="primary" id="scriptImportFileButton" type="button">Vybrať DOCX</button>
+          </div>
+          <input id="scriptImportFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden tabindex="-1">
+          <details class="optional-fields">
+            <summary>Vložiť text namiesto súboru <span>voliteľné</span></summary>
+            <label for="scriptImportText">Text scenára</label>
+            <textarea id="scriptImportText" placeholder="TULÁK: Prvá replika...&#10;IRIS: Odpoveď..."></textarea>
+            <div class="form-actions"><button id="prepareTextImportBtn" type="button">Pripraviť vložený text</button></div>
+          </details>
+          <label for="scriptImportCharacter">Moja postava</label>
+          <select id="scriptImportCharacter" disabled><option value="">Najprv načítaj scenár</option></select>
+          <div class="scene-preview hidden" id="scriptImportPreview" aria-live="polite"></div>
+          <div class="import-review" id="scriptImportIssues"></div>
+          <div class="import-review" id="scriptImportCandidates"></div>
+          <div class="form-actions">
+            <button class="primary" id="confirmScriptImportBtn" type="button" disabled>Pridať do knižnice</button>
           </div>
         </form>
       </section>

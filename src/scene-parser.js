@@ -31,7 +31,7 @@ export function parseScene(text) {
   }
 
   const speakers = [...new Set(entries.filter(entry => entry.type === 'speech').map(entry => entry.speaker))];
-  if (speakers.length < 2) errors.push('Scéna musí obsahovať aspoň dve postavy v tvare MENO: replika.');
+  if (!speakers.length) errors.push('Scéna musí obsahovať aspoň jednu repliku v tvare MENO: replika.');
   if (!entries.some(entry => entry.type === 'speech')) errors.push('Scéna neobsahuje žiadnu repliku.');
   return { entries, speakers, errors };
 }

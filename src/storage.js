@@ -1,6 +1,6 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
 export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -54,7 +54,7 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -68,6 +68,9 @@ export function validateAppData(value) {
     }
     if (typeof rehearsal.title !== 'string' || typeof rehearsal.text !== 'string') {
       throw new Error('Backup obsahuje neplatnú repliku.');
+    }
+    if (rehearsal.importFingerprint !== undefined && typeof rehearsal.importFingerprint !== 'string') {
+      throw new Error('Backup obsahuje neplatný údaj o importe.');
     }
     if (rehearsal.status !== undefined && !['draft', 'inProgress', 'completed', 'reviewDue', 'reviewVerified'].includes(rehearsal.status)) {
       throw new Error('Backup obsahuje neplatný stav repliky.');
@@ -181,7 +184,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

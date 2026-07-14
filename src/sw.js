@@ -1,4 +1,4 @@
-const CACHE_NAME = 'replika-shell-v13';
+const CACHE_NAME = 'replika-shell-v14';
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,6 +10,8 @@ const APP_SHELL = [
   './parser.js',
   './learning-engine.js',
   './scene-parser.js',
+  './script-importer.js',
+  './docx-reader.js',
   './scene-learning-engine.js',
   './storage.js',
   './activity-tracker.js',

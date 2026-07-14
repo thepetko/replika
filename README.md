@@ -6,6 +6,7 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 
 - lokálna knižnica viacerých replík,
 - samostatná knižnica scén s viditeľnými nástupmi kolegov,
+- lokálny import celého scenára z DOCX alebo vloženého textu,
 - presné pokračovanie rozpracovanej relácie,
 - názov a voliteľne hra, postava a scéna,
 - automatické učenie viet, päťvetových úsekov a pravidelných kontrol od začiatku,
@@ -31,6 +32,10 @@ ANNA: Už idem.
 ```
 
 Nástroj ukáže rozpoznané postavy, vyberieš svoju a učíš sa vlastné repliky v pôvodnom poradí. Repliky kolegov a scénické poznámky zostávajú viditeľné ako kontext; po každých dvoch nových vlastných replikách príde rastúca kontrola doteraz naučenej časti.
+
+## Import celého scenára
+
+V karte **Scény** zvoľ **Importovať celý scenár** a vyber DOCX alebo vlož text. Po výbere postavy Replika navrhne súvislé výstupy, upozorní na nejasné riadky a vyberie dlhšie či štruktúrne náročnejšie repliky vhodné na samostatný tréning. Pred uložením môžeš každý návrh upraviť alebo odmietnuť. Import vždy iba pridáva do knižnice.
 
 ## Najjednoduchšie spustenie vo Windows
 
