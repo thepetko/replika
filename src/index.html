@@ -31,7 +31,26 @@
   </header>
 
   <main id="mainContent" tabindex="-1">
-    <section class="view" id="libraryView" aria-labelledby="libraryHeading">
+    <section class="view" id="gamesView" aria-labelledby="gamesHeading">
+      <div class="page-heading">
+        <div><p class="eyebrow">Tvoje inscenácie</p><h1 id="gamesHeading">Hry</h1></div>
+        <button class="primary" id="gamesImportBtn" type="button">Importovať scenár</button>
+      </div>
+      <p class="status-message" id="gamesMessage" role="status" aria-live="polite"></p>
+      <div class="empty-state hidden" id="emptyGames"><div class="empty-symbol" aria-hidden="true">“</div><h2>Pridaj prvú hru</h2><p>Importuj celý scenár, vyber postavu a Replika pripraví scény aj denný plán.</p><button class="primary" id="emptyGamesImportBtn" type="button">Importovať scenár</button></div>
+      <div class="rehearsal-list" id="gamesList"></div>
+    </section>
+
+    <section class="view hidden" id="gameDetailView" aria-labelledby="gameDetailHeading">
+      <div class="training-topbar"><button class="back-button" id="backToGamesBtn" type="button">← Hry</button><div class="training-identity"><h1 id="gameDetailHeading">Hra</h1><p id="gameDetailMeta"></p></div></div>
+      <div class="metric-grid game-metrics" id="gameMetrics"></div>
+      <section class="editor-panel game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><div id="todayPlan"></div></section>
+      <section class="editor-panel" aria-labelledby="gameSettingsHeading"><div class="section-heading"><h2 id="gameSettingsHeading">Termín a voľno</h2></div><div class="optional-grid"><div><label for="gameDeadline">Termín naučenia</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></section>
+      <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Automaticky prepočítané</p><h2 id="planDaysHeading">Plán po dňoch</h2></div></div><div class="game-day-list" id="gameSchedule"></div></section>
+      <section aria-labelledby="gameScenesHeading"><div class="section-heading"><h2 id="gameScenesHeading">Scény a obrazy</h2></div><div class="rehearsal-list" id="gameScenes"></div></section>
+    </section>
+
+    <section class="view hidden" id="libraryView" aria-labelledby="libraryHeading">
       <div class="page-heading">
         <div>
           <p class="eyebrow">Tvoje texty</p>
@@ -148,11 +167,21 @@
           </details>
           <label for="scriptImportCharacter">Moja postava</label>
           <select id="scriptImportCharacter" disabled><option value="">Najprv načítaj scenár</option></select>
+          <div id="gameImportOptions" class="hidden">
+            <label for="scriptImportGameTitle">Názov hry</label>
+            <input id="scriptImportGameTitle" maxlength="120">
+            <label for="scriptImportDeadline">Dokedy sa chcem naučiť text</label>
+            <input id="scriptImportDeadline" type="date">
+            <label for="scriptImportDayOff">Voľný deň <span class="field-help">voliteľné</span></label>
+            <div class="compact-actions"><input id="scriptImportDayOff" type="date"><button id="addImportDayOffBtn" type="button">Pridať voľno</button></div>
+            <div class="day-off-list" id="importDaysOff"></div>
+            <div class="import-review" id="scriptImportUnits"></div>
+          </div>
           <div class="scene-preview hidden" id="scriptImportPreview" aria-live="polite"></div>
           <div class="import-review" id="scriptImportIssues"></div>
           <div class="import-review" id="scriptImportCandidates"></div>
           <div class="form-actions">
-            <button class="primary" id="confirmScriptImportBtn" type="button" disabled>Pridať do knižnice</button>
+            <button class="primary" id="confirmScriptImportBtn" type="button" disabled>Vytvoriť hru a plán</button>
           </div>
         </form>
       </section>
@@ -268,7 +297,8 @@
   </main>
 
   <nav class="bottom-nav" id="bottomNav" aria-label="Hlavná navigácia">
-    <button class="nav-item active" id="libraryNavBtn" type="button" aria-current="page">
+    <button class="nav-item active" id="gamesNavBtn" type="button" aria-current="page"><span class="nav-icon" aria-hidden="true">▤</span>Hry</button>
+    <button class="nav-item" id="libraryNavBtn" type="button">
       <span class="nav-icon" aria-hidden="true">▤</span>
       Repliky
     </button>

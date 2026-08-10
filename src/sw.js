@@ -1,4 +1,4 @@
-const CACHE_NAME = 'replika-shell-v14';
+const CACHE_NAME = 'replika-shell-v15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -15,7 +15,9 @@ const APP_SHELL = [
   './scene-learning-engine.js',
   './storage.js',
   './activity-tracker.js',
-  './ui-interactions.js'
+  './ui-interactions.js',
+  './game-plan.js',
+  './game-segments.js'
 ];
 
 self.addEventListener('install', event => {

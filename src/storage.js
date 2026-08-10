@@ -1,6 +1,6 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
 export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -45,6 +45,7 @@ export function createEmptyAppData() {
     schemaVersion: SCHEMA_VERSION,
     updatedAt: null,
     rehearsals: [],
+    games: [],
     activity: { days: {} }
   };
 }
@@ -54,10 +55,11 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, 3, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, 4, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
+  if (value.games !== undefined && !Array.isArray(value.games)) throw new Error('Knižnica hier nie je platná.');
   if (!isPlainObject(value.activity) || !isPlainObject(value.activity.days)) {
     throw new Error('Časové štatistiky nie sú platné.');
   }
@@ -91,6 +93,10 @@ export function validateAppData(value) {
     }
     validateSession(rehearsal.session);
   }
+  for (const game of value.games ?? []) {
+    if (!isPlainObject(game) || typeof game.id !== 'string' || typeof game.title !== 'string' || typeof game.character !== 'string' || typeof game.deadline !== 'string' || !Array.isArray(game.daysOff) || !Array.isArray(game.units)) throw new Error('Backup obsahuje neplatnú hru.');
+    if (!game.daysOff.every(day => typeof day === 'string') || !game.units.every(unit => isPlainObject(unit) && typeof unit.id === 'string' && typeof unit.text === 'string' && Number.isFinite(Number(unit.minutes)))) throw new Error('Backup obsahuje neplatný plán hry.');
+  }
 
   for (const day of Object.values(value.activity.days)) {
     if (!isPlainObject(day) || !Number.isFinite(Number(day.totalSeconds)) || Number(day.totalSeconds) < 0 || !isPlainObject(day.byRehearsal)) {
@@ -103,6 +109,7 @@ export function validateAppData(value) {
 
   const normalized = clone(value);
   normalized.schemaVersion = SCHEMA_VERSION;
+  normalized.games ??= [];
   return normalized;
 }
 
@@ -184,7 +191,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, 3, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, 4, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

@@ -405,7 +405,7 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
   bottom: max(1rem, env(safe-area-inset-bottom));
   left: 1rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: .35rem;
   max-width: 31rem;
   margin: 0 auto;
@@ -416,6 +416,21 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
   box-shadow: 0 .8rem 2.5rem rgb(27 26 23 / 16%);
   backdrop-filter: blur(.8rem);
 }
+
+.game-metrics { margin-bottom: 1rem; }
+.game-today { border-color: var(--ink); }
+.game-day-list { display: grid; gap: .75rem; }
+.game-day { padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius-medium); background: var(--surface); }
+.game-day.today { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.game-unit { display: grid; grid-template-columns: auto 1fr; gap: .75rem; align-items: start; padding: .85rem 0; border-top: 1px solid var(--line); }
+.game-unit:first-child { border-top: 0; }
+.game-unit input { width: 1.35rem; min-height: 1.35rem; margin-top: .15rem; padding: 0; accent-color: var(--ink); }
+.game-unit p { margin: .2rem 0 0; color: var(--muted); font-size: .85rem; white-space: pre-line; }
+.game-unit.done { opacity: .58; text-decoration: line-through; }
+.game-unit-meta { color: var(--muted); font-size: .78rem; font-weight: 700; }
+.day-off-list { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; }
+.day-off-list button { min-height: 2.2rem; padding: .35rem .6rem; font-size: .8rem; }
+#gameDayOff, #scriptImportDayOff { min-width: 10rem; flex: 1; }
 
 .nav-item { min-width: 0; min-height: 3.5rem; padding-inline: .3rem; display: flex; align-items: center; justify-content: center; gap: .35rem; border-color: transparent; background: transparent; font-size: .85rem; white-space: nowrap; }
 .nav-item.active { border-color: var(--ink); background: var(--ink); color: #fff; }

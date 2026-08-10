@@ -143,3 +143,14 @@ test('migrácia schémy 2 zachová existujúcu repliku a prijme scénu', () => {
   assert.equal(loaded.rehearsals[0].title, 'Staré');
   assert.equal(loaded.rehearsals[1].type, 'scene');
 });
+
+test('backup zachová hru s plánom a voľnými dňami', () => {
+  const data = createEmptyAppData();
+  data.games.push({
+    id: 'game-1', title: 'Hra', character: 'ANNA', deadline: '2026-08-27', daysOff: ['2026-08-15'],
+    units: [{ id: 'unit-1', sceneTitle: 'I. dejstvo', section: 'I. dejstvo', text: 'Text.', minutes: 8, completedAt: null }]
+  });
+  const restored = validateBackup(createBackup(data));
+  assert.equal(restored.data.games[0].daysOff[0], '2026-08-15');
+  assert.equal(restored.data.games[0].units[0].minutes, 8);
+});

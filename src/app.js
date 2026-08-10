@@ -34,9 +34,13 @@ import {
   validateBackup
 } from './storage.js';
 import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
+import { buildSchedule, localDateKey } from './game-plan.js';
+import { createStudyUnits, mergeUnitWithNext, splitUnit } from './game-segments.js';
 
 const byId = id => document.getElementById(id);
 const views = {
+  games: byId('gamesView'),
+  gameDetail: byId('gameDetailView'),
   library: byId('libraryView'),
   progress: byId('progressView'),
   training: byId('trainingView')
@@ -44,8 +48,9 @@ const views = {
 
 let appData;
 let storageHealthy = true;
-let currentView = 'library';
+let currentView = 'games';
 let currentRehearsalId = null;
+let currentGameId = null;
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
@@ -71,6 +76,7 @@ function normalizeRehearsal(rehearsal) {
     character: rehearsal.character ?? '',
     scene: rehearsal.scene ?? '',
     importFingerprint: rehearsal.importFingerprint ?? '',
+    gameId: rehearsal.gameId ?? '',
     text: rehearsal.text ?? '',
     parserVersion: rehearsal.parserVersion ?? null,
     parsed: rehearsal.parsed ?? null,
@@ -89,9 +95,14 @@ function normalizeRehearsal(rehearsal) {
   };
 }
 
+function normalizeGame(game) {
+  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', deadline: game.deadline ?? localDateKey(), daysOff: [...new Set(game.daysOff ?? [])].sort(), units: (game.units ?? []).map(unit => ({ ...unit, completedAt: unit.completedAt ?? null })), createdAt: game.createdAt ?? nowIso(), updatedAt: game.updatedAt ?? nowIso() };
+}
+
 try {
   appData = loadAppData();
   appData.rehearsals = appData.rehearsals.map(normalizeRehearsal);
+  appData.games = (appData.games ?? []).map(normalizeGame);
 } catch (error) {
   storageHealthy = false;
   appData = createEmptyAppData();
@@ -105,6 +116,7 @@ function currentRehearsal() {
 function findRehearsal(id) {
   return appData.rehearsals.find(item => item.id === id) ?? null;
 }
+function findGame(id) { return appData.games.find(game => game.id === id) ?? null; }
 
 function setLibraryMessage(message = '', isError = false) {
   const element = byId('libraryMessage');
@@ -229,8 +241,9 @@ function showView(name) {
   }
   const inTraining = name === 'training';
   byId('bottomNav').classList.toggle('hidden', inTraining);
-  const activeNav = name === 'progress' ? 'progress' : activeLibraryTab;
+  const activeNav = name === 'progress' ? 'progress' : name === 'games' || name === 'gameDetail' ? 'games' : activeLibraryTab;
   const navItems = {
+    games: byId('gamesNavBtn'),
     rehearsal: byId('libraryNavBtn'),
     scene: byId('scenesNavBtn'),
     progress: byId('progressNavBtn')
@@ -251,6 +264,64 @@ function syncLibraryTabs() {
   byId('scenesTabBtn').classList.toggle('active', scene);
   byId('scenesTabBtn').setAttribute('aria-selected', String(scene));
 }
+
+function formatPlanDate(key) {
+  return new Intl.DateTimeFormat('sk-SK', { weekday: 'short', day: 'numeric', month: 'long' }).format(new Date(`${key}T12:00:00`));
+}
+
+function gameScenes(game) { return appData.rehearsals.filter(item => item.type === 'scene' && item.gameId === game.id); }
+
+function setGamesMessage(message = '', isError = false) {
+  const node = byId('gamesMessage'); node.textContent = message; node.classList.toggle('error', isError);
+}
+
+function renderGames() {
+  const list = byId('gamesList'); list.replaceChildren();
+  const games = [...appData.games].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  byId('emptyGames').classList.toggle('hidden', games.length > 0);
+  for (const game of games) {
+    const card = element('article', 'rehearsal-card');
+    const done = game.units.filter(unit => unit.completedAt).length;
+    const percent = game.units.length ? Math.round(done / game.units.length * 100) : 0;
+    const top = element('div', 'card-topline'); const group = element('div', 'card-title-group');
+    group.append(element('h2', '', game.title), element('p', 'card-meta', `${game.character} · ${gameScenes(game).length} scén · termín ${formatPlanDate(game.deadline)}`));
+    top.append(group, element('span', 'status-chip status-dark', `${percent} %`));
+    const track = element('div', 'mini-progress'); const bar = element('span'); bar.style.width = `${percent}%`; track.append(bar);
+    const open = element('button', 'primary', 'Otvoriť hru'); open.type = 'button'; open.addEventListener('click', () => openGame(game.id));
+    card.append(top, element('div', 'card-info', `${done} z ${game.units.length} úsekov hotových`), track, open); list.append(card);
+  }
+}
+
+function showGames() { currentGameId = null; currentRehearsalId = null; showView('games'); renderGames(); }
+
+function renderGameUnit(unit, game) {
+  const row = element('label', `game-unit${unit.completedAt ? ' done' : ''}`);
+  const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Označiť úsek ako hotový: ${unit.sceneTitle}`);
+  checkbox.addEventListener('change', () => { unit.completedAt = checkbox.checked ? nowIso() : null; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
+  const copy = element('div'); copy.append(element('strong', '', unit.sceneTitle), element('div', 'game-unit-meta', `${unit.section} · približne ${unit.minutes} min`), element('p', '', unit.text));
+  row.append(checkbox, copy); return row;
+}
+
+function renderGameDetail() {
+  const game = findGame(currentGameId); if (!game) return showGames();
+  byId('gameDetailHeading').textContent = game.title; byId('gameDetailMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
+  const today = localDateKey(); const plan = buildSchedule(game.units, { start: today, deadline: game.deadline, daysOff: game.daysOff });
+  const done = game.units.filter(unit => unit.completedAt).length; const total = game.units.length; const remaining = plan.totalMinutes;
+  const metrics = byId('gameMetrics'); metrics.replaceChildren();
+  for (const [label, value] of [['Naučené', `${total ? Math.round(done / total * 100) : 0} %`], ['Zostáva', `${remaining} min`], ['Potrebné denne', `${plan.requiredDailyMinutes} min`], ['Termín', formatPlanDate(game.deadline)]]) { const card = element('article', 'metric-card'); card.append(element('span', '', label), element('strong', '', value)); metrics.append(card); }
+  const pace = byId('gamePace'); pace.textContent = plan.impossible ? 'Nie je dostupný žiadny deň.' : plan.requiredDailyMinutes > 70 ? 'Vyššie tempo' : 'Plán je rozložený'; pace.className = plan.impossible || plan.requiredDailyMinutes > 70 ? 'error' : '';
+  const todayBox = byId('todayPlan'); todayBox.replaceChildren(); const todayUnits = plan.schedule[today] ?? [];
+  if (!todayUnits.length) todayBox.append(element('p', 'muted-copy', plan.impossible ? 'Uprav voľné dni alebo termín.' : 'Dnes nemáš naplánovaný nový úsek.'));
+  else todayUnits.forEach(unit => todayBox.append(renderGameUnit(unit, game)));
+  byId('gameDeadline').value = game.deadline;
+  const daysOff = byId('gameDaysOff'); daysOff.replaceChildren(); for (const date of game.daysOff) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { game.daysOff = game.daysOff.filter(day => day !== date); game.updatedAt = nowIso(); persist(); renderGameDetail(); }); daysOff.append(button); }
+  const schedule = byId('gameSchedule'); schedule.replaceChildren();
+  if (plan.impossible) schedule.append(element('p', 'status-message error', 'V termíne nie je žiadny dostupný deň. Zruš aspoň jedno voľno alebo posuň termín.'));
+  for (const date of plan.dates) { const card = element('article', `game-day${date === today ? ' today' : ''}`); const units = plan.schedule[date] ?? []; card.append(element('h3', '', `${formatPlanDate(date)}${date === today ? ' · dnes' : ''}`), element('p', 'muted-copy', units.length ? `${units.length} úsekov · približne ${units.reduce((sum, unit) => sum + unit.minutes, 0)} min` : 'Bez nového úseku')); units.forEach(unit => card.append(renderGameUnit(unit, game))); schedule.append(card); }
+  const scenes = byId('gameScenes'); scenes.replaceChildren(); for (const scene of gameScenes(game)) { const row = element('article', 'rehearsal-card'); row.append(element('h3', '', scene.title), element('p', 'card-meta', `${scene.scene} · ${scene.parsed?.entries?.filter(entry => entry.type === 'speech' && entry.speaker === game.character).length ?? 0} replík`)); const button = element('button', 'secondary', 'Otvoriť scénu'); button.type = 'button'; button.addEventListener('click', () => openRehearsal(scene.id)); row.append(button); scenes.append(row); }
+}
+
+function openGame(id) { currentGameId = id; showView('gameDetail'); renderGameDetail(); }
 
 function renderLibrary() {
   refreshReviewStatuses();
@@ -443,19 +514,25 @@ function importSourceTitle(name = '') {
 }
 
 function closeScriptImport() {
+  const returnToGames = scriptImportState?.returnToGames;
   scriptImportState = null;
   byId('scriptImportForm').reset();
   byId('scriptImportPreview').replaceChildren();
   byId('scriptImportCharacter').replaceChildren();
   byId('scriptImportIssues').replaceChildren();
   byId('scriptImportCandidates').replaceChildren();
+  byId('scriptImportUnits').replaceChildren();
+  byId('importDaysOff').replaceChildren();
+  byId('gameImportOptions').classList.add('hidden');
   byId('confirmScriptImportBtn').disabled = true;
   byId('scriptImportPanel').classList.add('hidden');
   byId('bottomNav').classList.remove('hidden');
-  renderLibrary();
+  if (returnToGames) showGames(); else renderLibrary();
 }
 
 function openScriptImport() {
+  const returnToGames = currentView === 'games' || currentView === 'gameDetail';
+  showView('library');
   editingRehearsalId = null;
   byId('editorPanel').classList.add('hidden');
   byId('sceneEditorPanel').classList.add('hidden');
@@ -463,6 +540,7 @@ function openScriptImport() {
   byId('bottomNav').classList.add('hidden');
   byId('emptyLibrary').classList.add('hidden');
   byId('scriptImportFileButton').focus();
+  scriptImportState = { returnToGames };
 }
 
 function collectUnknownResolutions() {
@@ -489,11 +567,18 @@ function renderScriptImportPreview() {
     scriptImportState.selectedCandidates = new Set(recommended.map(candidate => candidate.sourceIndex));
     scriptImportState.candidateSelectionInitialized = true;
   }
-  scriptImportState.draft = { resolved, scenes, recommended };
+  const units = scriptImportState.draft?.character === character
+    ? scriptImportState.draft.units
+    : createStudyUnits(scenes, character, newId);
+  scriptImportState.draft = { resolved, scenes, recommended, units, character };
   const ownLines = scenes.reduce((count, scene) => count + scene.ownLines.length, 0);
   const duplicate = appData.rehearsals.some(rehearsal => rehearsal.importFingerprint === fingerprint);
   preview.append(element('strong', '', `${scenes.length} scén · ${ownLines} vlastných replík`));
   preview.append(element('p', 'muted-copy', duplicate ? 'Tento scenár už bol pravdepodobne importovaný. Pokračovanie vytvorí ďalšie kópie.' : `Zdroj: ${sourceTitle}`));
+  byId('gameImportOptions').classList.remove('hidden');
+  if (!byId('scriptImportGameTitle').value) byId('scriptImportGameTitle').value = sourceTitle;
+  if (!byId('scriptImportDeadline').value) { const deadline = new Date(); deadline.setDate(deadline.getDate() + 30); byId('scriptImportDeadline').value = localDateKey(deadline); }
+  renderImportUnits(); renderImportDaysOff();
 
   if (parsedDocument.unknowns.length) {
     issues.append(element('h3', '', 'Nejasné riadky'));
@@ -533,6 +618,22 @@ function renderScriptImportPreview() {
   byId('confirmScriptImportBtn').disabled = scenes.length === 0;
 }
 
+function renderImportDaysOff() {
+  const box = byId('importDaysOff'); box.replaceChildren();
+  for (const date of scriptImportState?.daysOff ?? []) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { scriptImportState.daysOff = scriptImportState.daysOff.filter(day => day !== date); renderImportDaysOff(); }); box.append(button); }
+}
+
+function renderImportUnits() {
+  const box = byId('scriptImportUnits'); box.replaceChildren(); const units = scriptImportState?.draft?.units ?? [];
+  if (!units.length) return;
+  box.append(element('h3', '', 'Učebné úseky plánu'), element('p', 'field-help', 'Krátke vstupy sú spojené; dlhšie repliky môžeš rozdeliť alebo spojiť s nasledujúcou.'));
+  for (const unit of units) {
+    const row = element('div', 'import-choice'); const copy = element('div'); copy.append(element('strong', '', unit.sceneTitle), element('small', '', `${unit.minutes} min · ${unit.text}`));
+    const controls = element('div', 'compact-actions'); const split = element('button', '', 'Rozdeliť'); split.type = 'button'; split.addEventListener('click', () => { scriptImportState.draft.units = splitUnit(scriptImportState.draft.units, unit.id, newId); renderImportUnits(); });
+    const merge = element('button', '', 'Spojiť'); merge.type = 'button'; merge.addEventListener('click', () => { scriptImportState.draft.units = mergeUnitWithNext(scriptImportState.draft.units, unit.id); renderImportUnits(); }); controls.append(split, merge); row.append(copy, controls); box.append(row);
+  }
+}
+
 function prepareScriptImport(paragraphs, sourceTitle) {
   const parsedDocument = normalizeScriptParagraphs(paragraphs);
   if (!parsedDocument.speakers.length) throw new Error('Scenár neobsahuje rozpoznateľné repliky v tvare MENO: text.');
@@ -543,7 +644,9 @@ function prepareScriptImport(paragraphs, sourceTitle) {
     resolutions: {},
     selectedCandidates: new Set(),
     candidateSelectionInitialized: false,
-    draft: null
+    daysOff: [],
+    draft: null,
+    returnToGames: scriptImportState?.returnToGames ?? false
   };
   const select = byId('scriptImportCharacter');
   select.replaceChildren(); select.append(new Option('Vyber postavu', ''));
@@ -557,13 +660,15 @@ function confirmScriptImport() {
   const state = scriptImportState;
   const character = byId('scriptImportCharacter').value;
   if (!state?.draft || !character) return;
-  const timestamp = nowIso();
+  const title = byId('scriptImportGameTitle').value.trim(); const deadline = byId('scriptImportDeadline').value;
+  if (!title || !deadline) { setLibraryMessage('Doplň názov hry a termín učenia.', true); return; }
+  const timestamp = nowIso(); const gameId = newId();
   const imported = [];
   for (const scene of state.draft.scenes) {
     const parsed = parseScene(scene.text);
     try { validateScene(parsed, character); } catch { continue; }
     imported.push(normalizeRehearsal({
-      id: newId(), type: 'scene', title: scene.title, play: state.sourceTitle, character, scene: scene.section,
+      id: newId(), type: 'scene', title: scene.title, play: title, character, scene: scene.section, gameId,
       text: scene.text, parsed, parserVersion: SCENE_PARSER_VERSION, importFingerprint: state.fingerprint,
       createdAt: timestamp, updatedAt: timestamp
     }));
@@ -580,10 +685,11 @@ function confirmScriptImport() {
     }));
   }
   if (!imported.length) { setLibraryMessage('Import nevytvoril žiadnu použiteľnú scénu.', true); return; }
+  appData.games.push(normalizeGame({ id: gameId, title, character, importFingerprint: state.fingerprint, deadline, daysOff: state.daysOff, units: state.draft.units, createdAt: timestamp, updatedAt: timestamp }));
   appData.rehearsals.push(...imported);
-  if (!persist(`Import pridal ${imported.filter(item => item.type === 'scene').length} scén a ${selectedCandidates.length} samostatných tréningov.`)) return;
-  activeLibraryTab = 'scene';
+  if (!persist(`Hra má ${imported.filter(item => item.type === 'scene').length} scén a denný plán.`)) return;
   closeScriptImport();
+  openGame(gameId);
 }
 
 async function saveRehearsalFromForm(event) {
@@ -940,6 +1046,12 @@ function showLibrary() {
   renderLibrary();
 }
 
+function returnFromTraining() {
+  const rehearsal = currentRehearsal();
+  if (rehearsal?.gameId && findGame(rehearsal.gameId)) openGame(rehearsal.gameId);
+  else showLibrary();
+}
+
 function renderProgress() {
   const summary = summarizeActivity(appData.activity, new Date());
   byId('statsToday').textContent = formatDuration(summary.todaySeconds);
@@ -1016,6 +1128,7 @@ async function importBackupFile(file) {
     downloadBackup(appData, 'replika-pred-importom');
     appData = replaceFromBackup(backup);
     appData.rehearsals = appData.rehearsals.map(normalizeRehearsal);
+    appData.games = (appData.games ?? []).map(normalizeGame);
     storageHealthy = true;
     currentRehearsalId = null;
     setLibraryMessage('Backup bol obnovený.');
@@ -1051,7 +1164,8 @@ const tracker = new VisibleActivityTracker({
   }
 });
 
-byId('brandButton').addEventListener('click', showLibrary);
+byId('brandButton').addEventListener('click', showGames);
+byId('gamesNavBtn').addEventListener('click', showGames);
 byId('libraryNavBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
 byId('scenesNavBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; showLibrary(); });
 byId('progressNavBtn').addEventListener('click', showProgress);
@@ -1063,6 +1177,11 @@ byId('selectLibraryBtn').addEventListener('click', toggleSelectionMode);
 byId('selectAllLibraryBtn').addEventListener('click', toggleSelectAllVisible);
 byId('deleteSelectedBtn').addEventListener('click', deleteSelectedRehearsals);
 byId('sceneImportBtn').addEventListener('click', openScriptImport);
+byId('gamesImportBtn').addEventListener('click', openScriptImport);
+byId('emptyGamesImportBtn').addEventListener('click', openScriptImport);
+byId('backToGamesBtn').addEventListener('click', showGames);
+byId('gameDeadline').addEventListener('change', () => { const game = findGame(currentGameId); if (!game || !byId('gameDeadline').value) return; game.deadline = byId('gameDeadline').value; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
+byId('addGameDayOffBtn').addEventListener('click', () => { const game = findGame(currentGameId); const date = byId('gameDayOff').value; if (!game || !date || game.daysOff.includes(date)) return; game.daysOff.push(date); game.daysOff.sort(); game.updatedAt = nowIso(); byId('gameDayOff').value = ''; persist(); renderGameDetail(); });
 byId('cancelEditorBtn').addEventListener('click', closeEditor);
 byId('rehearsalForm').addEventListener('submit', saveRehearsalFromForm);
 byId('cancelSceneEditorBtn').addEventListener('click', closeSceneEditor);
@@ -1090,6 +1209,7 @@ byId('scriptImportCharacter').addEventListener('change', () => {
   if (scriptImportState) scriptImportState.candidateSelectionInitialized = false;
   renderScriptImportPreview();
 });
+byId('addImportDayOffBtn').addEventListener('click', () => { const date = byId('scriptImportDayOff').value; if (!scriptImportState || !date || scriptImportState.daysOff.includes(date)) return; scriptImportState.daysOff.push(date); scriptImportState.daysOff.sort(); byId('scriptImportDayOff').value = ''; renderImportDaysOff(); });
 byId('confirmScriptImportBtn').addEventListener('click', confirmScriptImport);
 
 document.addEventListener('click', event => {
@@ -1136,9 +1256,9 @@ byId('importFile').addEventListener('change', async event => {
   event.target.value = '';
 });
 
-byId('backToLibraryBtn').addEventListener('click', showLibrary);
+byId('backToLibraryBtn').addEventListener('click', returnFromTraining);
 byId('restartTrainingBtn').addEventListener('click', () => confirmRestart(currentRehearsalId));
-byId('completionLibraryBtn').addEventListener('click', showLibrary);
+byId('completionLibraryBtn').addEventListener('click', returnFromTraining);
 byId('completionRestartBtn').addEventListener('click', () => openRehearsal(currentRehearsalId, true));
 
 byId('presentationBtn').addEventListener('click', () => {
@@ -1189,7 +1309,7 @@ window.addEventListener('pagehide', () => persist());
 window.addEventListener('pageshow', () => tracker.start());
 
 refreshReviewStatuses();
-renderLibrary();
+renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
