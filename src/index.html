@@ -46,8 +46,9 @@
       <div class="metric-grid game-metrics" id="gameMetrics"></div>
       <section class="editor-panel game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><div id="todayPlan"></div></section>
       <section class="editor-panel" aria-labelledby="gameSettingsHeading"><div class="section-heading"><h2 id="gameSettingsHeading">Termín a voľno</h2></div><div class="optional-grid"><div><label for="gameDeadline">Termín naučenia</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></section>
-      <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Automaticky prepočítané</p><h2 id="planDaysHeading">Plán po dňoch</h2></div></div><div class="game-day-list" id="gameSchedule"></div></section>
+      <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Automaticky prepočítané</p><h2 id="planDaysHeading">Najbližšie dávky</h2></div></div><p class="field-help" id="gameScheduleHelp">Po označení hotovej dávky sa rozdelí už iba zostávajúci text.</p><div class="game-day-list" id="gameSchedule"></div></section>
       <section aria-labelledby="gameScenesHeading"><div class="section-heading"><h2 id="gameScenesHeading">Scény a obrazy</h2></div><div class="rehearsal-list" id="gameScenes"></div></section>
+      <details class="optional-fields" id="completedUnitsPanel"><summary>Hotové dávky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details>
     </section>
 
     <section class="view hidden" id="libraryView" aria-labelledby="libraryHeading">
