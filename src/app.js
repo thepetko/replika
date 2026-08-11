@@ -305,7 +305,7 @@ function renderPlanChange() {
 }
 
 function renderGameUnit(unit, game) {
-  const row = element('label', `game-unit${unit.completedAt ? ' done' : ''}`);
+  const row = element('article', `game-unit${unit.completedAt ? ' done' : ''}`);
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Označiť úsek ako hotový: ${unit.sceneTitle}`);
   const confirmation = element('span', 'unit-confirmation', '✓ Hotovo'); confirmation.setAttribute('aria-live', 'polite');
   checkbox.addEventListener('change', () => {
