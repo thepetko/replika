@@ -297,12 +297,32 @@ function renderGames() {
 
 function showGames() { currentGameId = null; currentRehearsalId = null; showView('games'); renderGames(); }
 
+function renderPlanChange() {
+  const render = () => renderGameDetail();
+  const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion && typeof document.startViewTransition === 'function') document.startViewTransition(render);
+  else render();
+}
+
 function renderGameUnit(unit, game) {
   const row = element('label', `game-unit${unit.completedAt ? ' done' : ''}`);
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Označiť úsek ako hotový: ${unit.sceneTitle}`);
-  checkbox.addEventListener('change', () => { unit.completedAt = checkbox.checked ? nowIso() : null; lastPlanAction = { completed: checkbox.checked, unitId: unit.id }; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
+  const confirmation = element('span', 'unit-confirmation', '✓ Hotovo'); confirmation.setAttribute('aria-live', 'polite');
+  checkbox.addEventListener('change', () => {
+    const completed = checkbox.checked;
+    checkbox.disabled = true;
+    row.classList.add(completed ? 'is-completing' : 'is-restoring');
+    confirmation.textContent = completed ? '✓ Hotovo' : '↩ Späť v pláne';
+    const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const delay = reduceMotion ? 0 : completed ? 480 : 260;
+    setTimeout(() => {
+      unit.completedAt = completed ? nowIso() : null;
+      lastPlanAction = { completed, unitId: unit.id };
+      game.updatedAt = nowIso(); persist(); renderPlanChange();
+    }, delay);
+  });
   const copy = element('div'); copy.append(element('strong', '', unit.sceneTitle), element('div', 'game-unit-meta', `${unit.section} · približne ${unit.minutes} min`), element('p', '', unit.text));
-  row.append(checkbox, copy); return row;
+  row.append(checkbox, copy, confirmation); return row;
 }
 
 function calendarDateRange(start, end) {

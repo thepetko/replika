@@ -444,12 +444,20 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .plan-feedback { position: fixed; z-index: 20; right: 1rem; bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 5rem)); left: 1rem; max-width: 34rem; margin: 0 auto; padding: .9rem 1rem; border: 1px solid #166534; border-radius: .85rem; background: #e9f7ec; color: #14532d; font-weight: 800; box-shadow: 0 .8rem 1.6rem rgb(20 83 45 / 18%); opacity: 0; transform: translateY(.8rem) scale(.97); }
 .plan-feedback.show { animation: plan-confirm 180ms cubic-bezier(.16, 1, .3, 1) forwards; }
 @keyframes plan-confirm { to { opacity: 1; transform: translateY(0) scale(1); } }
-.game-unit { display: grid; grid-template-columns: auto 1fr; gap: .75rem; align-items: start; padding: .85rem 0; border-top: 1px solid var(--line); }
+.game-unit { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .75rem; align-items: start; padding: .85rem 0; border-top: 1px solid var(--line); transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 .game-unit:first-child { border-top: 0; }
-.game-unit input { width: 1.35rem; min-height: 1.35rem; margin-top: .15rem; padding: 0; accent-color: var(--ink); }
+.game-unit input { width: 1.35rem; min-height: 1.35rem; margin-top: .15rem; padding: 0; accent-color: var(--ink); transition: transform 180ms cubic-bezier(.16, 1, .3, 1), filter 180ms ease; }
 .game-unit p { margin: .2rem 0 0; color: var(--muted); font-size: .85rem; white-space: pre-line; }
 .game-unit.done { opacity: .58; text-decoration: line-through; }
 .game-unit-meta { color: var(--muted); font-size: .78rem; font-weight: 700; }
+.unit-confirmation { position: absolute; z-index: 1; top: 50%; left: 50%; padding: .45rem .8rem; border-radius: 999px; background: #166534; color: #fff; font-size: .9rem; font-weight: 900; opacity: 0; pointer-events: none; transform: translate(-50%, -35%) scale(.7); }
+.game-unit.is-completing { background: #e9f7ec; box-shadow: inset 0 0 0 1px #15803d; animation: task-complete 480ms cubic-bezier(.16, 1, .3, 1) both; }
+.game-unit.is-completing input { filter: drop-shadow(0 .15rem .2rem rgb(22 101 52 / 30%)); transform: scale(1.35); }
+.game-unit.is-completing .unit-confirmation { animation: unit-confirm 480ms cubic-bezier(.16, 1, .3, 1) both; }
+.game-unit.is-restoring { background: #f4f3ef; box-shadow: inset 0 0 0 1px var(--ink); }
+.game-unit.is-restoring .unit-confirmation { background: var(--ink); animation: unit-confirm 260ms cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes task-complete { 0% { transform: scale(1); } 45% { transform: scale(1.015); } 100% { transform: scale(.98); opacity: .7; } }
+@keyframes unit-confirm { 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 72% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -58%) scale(.92); } }
 .day-off-list { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; }
 .day-off-list button { min-height: 2.2rem; padding: .35rem .6rem; font-size: .8rem; }
 #gameDayOff, #scriptImportDayOff { min-width: 10rem; flex: 1; }
