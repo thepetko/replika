@@ -8,6 +8,14 @@ test('plán rozdelí zostávajúce úseky medzi dni', () => {
   const plan = buildSchedule(units, { start: '2026-08-10', deadline: '2026-08-12' });
   assert.equal(plan.dates.length, 3); assert.equal(Object.values(plan.schedule).flat().length, 3);
 });
+test('plán vždy zachová chronologické poradie podľa order', () => {
+  const plan = buildSchedule([
+    { id: 'záver', text: 'Záver', minutes: 10, order: 2 },
+    { id: 'úvod', text: 'Úvod', minutes: 10, order: 0 },
+    { id: 'stred', text: 'Stred', minutes: 10, order: 1 }
+  ], { start: '2026-08-10', deadline: '2026-08-12' });
+  assert.deepEqual(Object.values(plan.schedule).flat().map(unit => unit.id), ['úvod', 'stred', 'záver']);
+});
 test('voľný deň sa vylúči a hotový úsek sa neplánuje', () => {
   assert.deepEqual(availableDates('2026-08-10', '2026-08-12', ['2026-08-11']), ['2026-08-10', '2026-08-12']);
   const plan = buildSchedule([{ ...units[0], completedAt: '2026-08-10' }, units[1]], { start: '2026-08-10', deadline: '2026-08-11' });

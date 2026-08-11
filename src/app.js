@@ -51,6 +51,9 @@ let storageHealthy = true;
 let currentView = 'games';
 let currentRehearsalId = null;
 let currentGameId = null;
+let selectedPlanDate = null;
+let lastPlanAction = null;
+let planFeedbackTimer = null;
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
@@ -96,7 +99,7 @@ function normalizeRehearsal(rehearsal) {
 }
 
 function normalizeGame(game) {
-  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', deadline: game.deadline ?? localDateKey(), daysOff: [...new Set(game.daysOff ?? [])].sort(), units: (game.units ?? []).map(unit => ({ ...unit, completedAt: unit.completedAt ?? null })), createdAt: game.createdAt ?? nowIso(), updatedAt: game.updatedAt ?? nowIso() };
+  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', deadline: game.deadline ?? localDateKey(), daysOff: [...new Set(game.daysOff ?? [])].sort(), units: (game.units ?? []).map((unit, index) => ({ ...unit, order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index, completedAt: unit.completedAt ?? null })), createdAt: game.createdAt ?? nowIso(), updatedAt: game.updatedAt ?? nowIso() };
 }
 
 try {
@@ -297,9 +300,41 @@ function showGames() { currentGameId = null; currentRehearsalId = null; showView
 function renderGameUnit(unit, game) {
   const row = element('label', `game-unit${unit.completedAt ? ' done' : ''}`);
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Označiť úsek ako hotový: ${unit.sceneTitle}`);
-  checkbox.addEventListener('change', () => { unit.completedAt = checkbox.checked ? nowIso() : null; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
+  checkbox.addEventListener('change', () => { unit.completedAt = checkbox.checked ? nowIso() : null; lastPlanAction = { completed: checkbox.checked, unitId: unit.id }; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
   const copy = element('div'); copy.append(element('strong', '', unit.sceneTitle), element('div', 'game-unit-meta', `${unit.section} · približne ${unit.minutes} min`), element('p', '', unit.text));
   row.append(checkbox, copy); return row;
+}
+
+function calendarDateRange(start, end) {
+  if (!start || !end || start > end) return [];
+  const dates = []; const current = new Date(`${start}T12:00:00`); const last = new Date(`${end}T12:00:00`);
+  while (current <= last) { dates.push(localDateKey(current)); current.setDate(current.getDate() + 1); }
+  return dates;
+}
+
+function renderPlanCalendar(game, plan, today) {
+  const calendar = byId('gameCalendar'); calendar.replaceChildren();
+  const dates = calendarDateRange(today, game.deadline);
+  if (!dates.length) { calendar.append(element('p', 'status-message error', 'Termín je pred dnešným dňom. Zvoľ nový termín.')); return; }
+  if (!selectedPlanDate || !dates.includes(selectedPlanDate)) selectedPlanDate = dates.includes(today) ? today : dates[0];
+  const daysOff = new Set(game.daysOff);
+  const months = new Map(); for (const key of dates) { const date = new Date(`${key}T12:00:00`); const month = `${date.getFullYear()}-${date.getMonth()}`; if (!months.has(month)) months.set(month, []); months.get(month).push({ key, date }); }
+  for (const monthDates of months.values()) {
+    const month = element('section', 'calendar-month');
+    month.append(element('h3', '', new Intl.DateTimeFormat('sk-SK', { month: 'long', year: 'numeric' }).format(monthDates[0].date)));
+    const week = element('div', 'calendar-weekdays'); for (const label of ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne']) week.append(element('span', '', label)); month.append(week);
+    const grid = element('div', 'calendar-grid');
+    const firstOffset = (monthDates[0].date.getDay() + 6) % 7; for (let index = 0; index < firstOffset; index += 1) grid.append(element('span', 'calendar-blank'));
+    for (const { key, date } of monthDates) {
+      const tasks = plan.schedule[key] ?? []; const button = element('button', `calendar-day${key === today ? ' today' : ''}${key === selectedPlanDate ? ' selected' : ''}${daysOff.has(key) ? ' off' : ''}`);
+      button.type = 'button'; button.setAttribute('aria-pressed', String(key === selectedPlanDate)); button.setAttribute('aria-label', `${formatPlanDate(key)}${daysOff.has(key) ? ', voľný deň' : tasks.length ? `, ${tasks.length} úsekov, ${tasks.reduce((sum, unit) => sum + unit.minutes, 0)} minút` : ', bez nového textu'}`);
+      button.append(element('strong', '', String(date.getDate())));
+      if (daysOff.has(key)) button.append(element('span', 'calendar-off', 'voľno'));
+      else if (tasks.length) button.append(element('span', 'calendar-load', `${tasks.length} · ${tasks.reduce((sum, unit) => sum + unit.minutes, 0)}m`));
+      button.addEventListener('click', () => { selectedPlanDate = key; renderGameDetail(); }); grid.append(button);
+    }
+    month.append(grid); calendar.append(month);
+  }
 }
 
 function renderGameDetail() {
@@ -315,13 +350,25 @@ function renderGameDetail() {
   else todayUnits.forEach(unit => todayBox.append(renderGameUnit(unit, game)));
   byId('gameDeadline').value = game.deadline;
   const daysOff = byId('gameDaysOff'); daysOff.replaceChildren(); for (const date of game.daysOff) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { game.daysOff = game.daysOff.filter(day => day !== date); game.updatedAt = nowIso(); persist(); renderGameDetail(); }); daysOff.append(button); }
+  renderPlanCalendar(game, plan, today);
   const schedule = byId('gameSchedule'); schedule.replaceChildren();
-  byId('planDaysHeading').textContent = todayUnits.length ? 'Ďalšie dávky' : 'Najbližšie dávky';
-  byId('gameScheduleHelp').textContent = 'Zobrazené sú iba dni, na ktoré máš naplánovaný nový text. Po označení hotovej dávky sa zvyšok automaticky prerozdelí.';
+  byId('planDaysHeading').textContent = 'Plán v kalendári';
+  byId('gameScheduleHelp').textContent = 'Klikni na deň a uvidíš jeho dávky. Značka ukazuje počet úsekov a odhad času.';
   if (plan.impossible) schedule.append(element('p', 'status-message error', 'V termíne nie je žiadny dostupný deň. Zruš aspoň jedno voľno alebo posuň termín.'));
-  const futureDates = plan.dates.filter(date => date > today && (plan.schedule[date] ?? []).length);
-  if (!plan.impossible && !futureDates.length) schedule.append(element('p', 'muted-copy', todayUnits.length ? 'Po dnešnej dávke zatiaľ nemusíš pridávať nový text.' : 'Všetky dávky sú hotové. Termín zostáva ako rezerva na opakovanie.'));
-  for (const date of futureDates) { const card = element('article', 'game-day'); const units = plan.schedule[date] ?? []; card.append(element('h3', '', formatPlanDate(date)), element('p', 'muted-copy', `${units.length} úsekov · približne ${units.reduce((sum, unit) => sum + unit.minutes, 0)} min`)); units.forEach(unit => card.append(renderGameUnit(unit, game))); schedule.append(card); }
+  else if (selectedPlanDate === today) schedule.append(element('p', 'muted-copy', todayUnits.length ? 'Dnešné dávky sú zobrazené hore, aby si mal najbližší krok hneď po otvorení.' : 'Dnes už nemáš naplánovaný nový text.'));
+  else if (game.daysOff.includes(selectedPlanDate)) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} máš označený ako voľný deň.`));
+  else {
+    const selectedTasks = plan.schedule[selectedPlanDate] ?? [];
+    if (!selectedTasks.length) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} zatiaľ nemá naplánovaný nový text.`));
+    else { const card = element('article', 'game-day selected-day'); card.append(element('h3', '', formatPlanDate(selectedPlanDate)), element('p', 'muted-copy', `${selectedTasks.length} úsekov · približne ${selectedTasks.reduce((sum, unit) => sum + unit.minutes, 0)} min`)); selectedTasks.forEach(unit => card.append(renderGameUnit(unit, game))); schedule.append(card); }
+  }
+  const feedback = byId('planFeedback');
+  if (lastPlanAction) {
+    feedback.textContent = lastPlanAction.completed ? '✓ Dávka je označená ako hotová. Zvyšok plánu som prepočítal.' : 'Dávka je späť v pláne a termíny sa prepočítali.';
+    feedback.classList.remove('hidden', 'show'); requestAnimationFrame(() => feedback.classList.add('show'));
+    clearTimeout(planFeedbackTimer); planFeedbackTimer = setTimeout(() => { feedback.classList.remove('show'); feedback.classList.add('hidden'); }, 3600);
+    lastPlanAction = null;
+  }
   const scenes = byId('gameScenes'); scenes.replaceChildren(); for (const scene of gameScenes(game)) { const row = element('article', 'rehearsal-card'); row.append(element('h3', '', scene.title), element('p', 'card-meta', `${scene.scene} · ${scene.parsed?.entries?.filter(entry => entry.type === 'speech' && entry.speaker === game.character).length ?? 0} replík`)); const button = element('button', 'secondary', 'Otvoriť scénu'); button.type = 'button'; button.addEventListener('click', () => openRehearsal(scene.id)); row.append(button); scenes.append(row); }
   const completedPanel = byId('completedUnitsPanel'); const completedBox = byId('completedUnits'); completedBox.replaceChildren(); const completedUnits = game.units.filter(unit => unit.completedAt).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
   byId('completedUnitsCount').textContent = completedUnits.length ? `${completedUnits.length} hotových` : 'zatiaľ žiadne';

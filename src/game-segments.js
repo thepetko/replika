@@ -14,7 +14,7 @@ function splitLong(text, maxWords = 70) {
 
 export function createStudyUnits(scenes, character, makeId) {
   const units = []; let pending = null;
-  const flush = () => { if (pending) { pending.minutes = estimateMinutes(pending.text); units.push(pending); pending = null; } };
+  const flush = () => { if (pending) { pending.minutes = estimateMinutes(pending.text); pending.order = units.length; units.push(pending); pending = null; } };
   for (const scene of scenes) {
     flush();
     for (const line of scene.ownLines) {
@@ -41,7 +41,7 @@ export function splitUnit(units, id, makeId) {
   if (index < 0) return units;
   const unit = units[index]; const parts = splitLong(unit.text, 35);
   if (parts.length < 2) return units;
-  const replacements = parts.map(text => ({ ...unit, id: makeId(), text, minutes: estimateMinutes(text), completedAt: null }));
+  const replacements = parts.map((text, partIndex) => ({ ...unit, id: makeId(), order: Number(unit.order ?? index) + partIndex / parts.length, text, minutes: estimateMinutes(text), completedAt: null }));
   return [...units.slice(0, index), ...replacements, ...units.slice(index + 1)];
 }
 

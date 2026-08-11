@@ -24,7 +24,11 @@ export function estimateMinutes(text = '') {
 }
 
 export function buildSchedule(units, { start = localDateKey(), deadline, daysOff = [] } = {}) {
-  const remaining = units.filter(unit => !unit.completedAt);
+  const remaining = units
+    .map((unit, index) => ({ unit, index }))
+    .filter(({ unit }) => !unit.completedAt)
+    .sort((a, b) => (Number(a.unit.order ?? a.index) - Number(b.unit.order ?? b.index)) || a.index - b.index)
+    .map(({ unit }) => unit);
   const dates = availableDates(start, deadline, daysOff);
   const schedule = Object.fromEntries(dates.map(date => [date, []]));
   const totalMinutes = remaining.reduce((sum, unit) => sum + Number(unit.minutes || 0), 0);
