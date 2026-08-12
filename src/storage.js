@@ -1,6 +1,6 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
 export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -44,6 +44,55 @@ function validateSceneSession(session) {
   }
 }
 
+function validateScriptGame(game) {
+  if (!isPlainObject(game.script)
+    || !Array.isArray(game.script.entries)
+    || !Array.isArray(game.script.sections)
+    || !Array.isArray(game.script.speeches)
+    || !Array.isArray(game.script.speakers)) {
+    throw new Error('Backup obsahuje neplatný webový scenár.');
+  }
+  const entryIds = new Set();
+  let previousSourceIndex = -1;
+  for (const entry of game.script.entries) {
+    if (!isPlainObject(entry) || typeof entry.id !== 'string' || entryIds.has(entry.id)
+      || !Number.isInteger(entry.sourceIndex) || typeof entry.rawText !== 'string'
+      || typeof entry.text !== 'string' || typeof entry.type !== 'string'
+      || typeof entry.sectionId !== 'string' || entry.sourceIndex <= previousSourceIndex) {
+      throw new Error('Backup obsahuje neplatný blok scenára.');
+    }
+    entryIds.add(entry.id);
+    previousSourceIndex = entry.sourceIndex;
+  }
+  const sectionIds = new Set(game.script.sections.map(section => section?.id));
+  if (sectionIds.has(undefined) || sectionIds.size !== game.script.sections.length
+    || !game.script.sections.every(section => isPlainObject(section) && typeof section.title === 'string')
+    || !game.script.entries.every(entry => sectionIds.has(entry.sectionId))) {
+    throw new Error('Backup obsahuje neplatné členenie scenára.');
+  }
+  const speechIds = new Set();
+  for (const speech of game.script.speeches) {
+    if (!isPlainObject(speech) || typeof speech.id !== 'string' || speechIds.has(speech.id)
+      || typeof speech.speaker !== 'string' || !sectionIds.has(speech.sectionId)
+      || !Array.isArray(speech.entryIds) || !speech.entryIds.every(id => entryIds.has(id))
+      || typeof speech.text !== 'string'
+      || (speech.learnedAt !== null && speech.learnedAt !== undefined && typeof speech.learnedAt !== 'string')) {
+      throw new Error('Backup obsahuje neplatnú repliku scenára.');
+    }
+    speechIds.add(speech.id);
+  }
+  if (!game.script.speakers.every(speaker => typeof speaker === 'string')) throw new Error('Backup obsahuje neplatný zoznam postáv.');
+  if (!isPlainObject(game.dailyTargets ?? {})) throw new Error('Backup obsahuje neplatný dnešný cieľ.');
+  for (const target of Object.values(game.dailyTargets ?? {})) {
+    if (!isPlainObject(target) || !Array.isArray(target.speechIds) || !target.speechIds.every(id => speechIds.has(id))) {
+      throw new Error('Backup obsahuje neplatný dnešný cieľ.');
+    }
+  }
+  if (game.focusSectionId !== null && game.focusSectionId !== undefined && !sectionIds.has(game.focusSectionId)) {
+    throw new Error('Backup obsahuje neplatnú prioritu scenára.');
+  }
+}
+
 export function createEmptyAppData() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -59,7 +108,7 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -98,8 +147,15 @@ export function validateAppData(value) {
     validateSession(rehearsal.session);
   }
   for (const game of value.games ?? []) {
-    if (!isPlainObject(game) || typeof game.id !== 'string' || typeof game.title !== 'string' || typeof game.character !== 'string' || typeof game.deadline !== 'string' || !Array.isArray(game.daysOff) || !Array.isArray(game.units)) throw new Error('Backup obsahuje neplatnú hru.');
-    if (!game.daysOff.every(day => typeof day === 'string') || !game.units.every(unit => isPlainObject(unit) && typeof unit.id === 'string' && typeof unit.text === 'string' && Number.isFinite(Number(unit.minutes)))) throw new Error('Backup obsahuje neplatný plán hry.');
+    if (!isPlainObject(game) || typeof game.id !== 'string' || typeof game.title !== 'string' || typeof game.character !== 'string' || typeof game.deadline !== 'string' || !Array.isArray(game.daysOff)) throw new Error('Backup obsahuje neplatnú hru.');
+    if (!game.daysOff.every(day => typeof day === 'string')) throw new Error('Backup obsahuje neplatný plán hry.');
+    const mode = game.mode ?? 'legacy';
+    if (!['legacy', 'script'].includes(mode)) throw new Error('Backup obsahuje neplatný režim hry.');
+    if (mode === 'script') {
+      validateScriptGame(game);
+      continue;
+    }
+    if (!Array.isArray(game.units) || !game.units.every(unit => isPlainObject(unit) && typeof unit.id === 'string' && typeof unit.text === 'string' && Number.isFinite(Number(unit.minutes)))) throw new Error('Backup obsahuje neplatný plán hry.');
     if (game.newMaterialEnd !== undefined && typeof game.newMaterialEnd !== 'string') throw new Error('Backup obsahuje neplatný termín nového textu.');
     if (game.lockedPlans !== undefined && (!isPlainObject(game.lockedPlans) || !Object.values(game.lockedPlans).every(ids => Array.isArray(ids) && ids.every(id => typeof id === 'string')))) throw new Error('Backup obsahuje neplatný uzamknutý plán.');
   }
@@ -117,7 +173,15 @@ export function validateAppData(value) {
   normalized.schemaVersion = SCHEMA_VERSION;
   normalized.games ??= [];
   for (const game of normalized.games) {
+    game.mode ??= 'legacy';
     game.startDate ??= game.createdAt?.slice(0, 10) || game.deadline;
+    if (game.mode === 'script') {
+      game.daysOff ??= [];
+      game.dailyTargets ??= {};
+      game.focusSectionId ??= null;
+      for (const speech of game.script.speeches) speech.learnedAt ??= null;
+      continue;
+    }
     game.newMaterialEnd ??= shiftDate(game.deadline, -3);
     game.lockedPlans ??= {};
     for (const unit of game.units) unit.weak = Boolean(unit.weak);
@@ -203,7 +267,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

@@ -24,6 +24,21 @@ export function mergeStudyUnitProgress(existingUnits = [], freshUnits = []) {
   });
 }
 
+export function setStudyUnitCompletion(games, gameId, unitId, completedAt, plan = {}) {
+  const game = games.find(item => item.id === gameId);
+  const unit = game?.units?.find(item => item.id === unitId);
+  if (!unit) return false;
+  if (completedAt && plan.date && plan.unitIds?.length) {
+    game.lockedPlans ??= {};
+    if (!Object.hasOwn(game.lockedPlans, plan.date)) {
+      const validIds = new Set(game.units.map(item => item.id));
+      game.lockedPlans[plan.date] = [...new Set(plan.unitIds)].filter(id => validIds.has(id));
+    }
+  }
+  unit.completedAt = completedAt;
+  return true;
+}
+
 function scenePrompts(scene, character) {
   const entries = scene.entries ?? []; const prompts = [];
   for (const [index, entry] of entries.entries()) {

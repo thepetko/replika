@@ -35,6 +35,31 @@ test('uzamknutý dnešok sa po dokončení nedoplní ďalším úsekom', () => {
   assert.deepEqual(plan.schedule['2026-08-10'], []);
   assert.deepEqual(Object.values(plan.schedule).flat().map(unit => unit.id), ['b', 'c']);
 });
+test('dokončený budúci deň sa znovu nenaplní nasledujúcou replikou', () => {
+  const completed = (id, order) => ({ id, order, text: id, minutes: 10, completedAt: '2026-08-10T10:00:00' });
+  const plan = buildSchedule([
+    completed('A', 0), completed('B', 1), completed('C', 2), completed('D', 3),
+    { id: 'E', order: 4, text: 'E', minutes: 10 }, { id: 'F', order: 5, text: 'F', minutes: 10 }
+  ], {
+    start: '2026-08-10', deadline: '2026-08-12',
+    lockedPlans: { '2026-08-10': ['A', 'B'], '2026-08-11': ['C', 'D'] }
+  });
+  assert.deepEqual(plan.schedule['2026-08-11'], []);
+  assert.deepEqual(plan.schedule['2026-08-12'].map(unit => unit.id), ['E', 'F']);
+});
+test('začatá budúca dávka zostane pevná a ďalšie repliky idú až za ňu', () => {
+  const completed = (id, order) => ({ id, order, text: id, minutes: 10, completedAt: '2026-08-10T10:00:00' });
+  const plan = buildSchedule([
+    completed('A', 0), completed('B', 1),
+    { id: 'C', order: 2, text: 'C', minutes: 10 }, { id: 'D', order: 3, text: 'D', minutes: 10 },
+    { id: 'E', order: 4, text: 'E', minutes: 10 }, { id: 'F', order: 5, text: 'F', minutes: 10 }
+  ], {
+    start: '2026-08-10', deadline: '2026-08-12',
+    lockedPlans: { '2026-08-10': ['A', 'B'], '2026-08-11': ['C', 'D'] }
+  });
+  assert.deepEqual(plan.schedule['2026-08-11'].map(unit => unit.id), ['C', 'D']);
+  assert.deepEqual(plan.schedule['2026-08-12'].map(unit => unit.id), ['E', 'F']);
+});
 test('opakovanie vráti unikátne úseky zvládnuté pred 1, 3 a 7 dňami', () => {
   const completed = [1, 3, 7, 2].map((gap, index) => ({ id: String(index), text: 'Text', minutes: 5, order: index, completedAt: `2026-08-${String(10 - gap).padStart(2, '0')}T12:00:00` }));
   assert.deepEqual(reviewUnitsForDate(completed, '2026-08-10').map(unit => unit.id), ['0', '1', '2']);

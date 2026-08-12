@@ -166,6 +166,35 @@ test('schéma 5 bezpečne doplní konfiguráciu dynamického plánu', () => {
   assert.equal(migrated.schemaVersion, SCHEMA_VERSION); assert.equal(migrated.games[0].newMaterialEnd, '2026-08-24'); assert.deepEqual(migrated.games[0].lockedPlans, {});
 });
 
+test('migrácia označí existujúcu hru ako legacy bez straty plánu', () => {
+  const old = createEmptyAppData(); old.schemaVersion = 6;
+  old.games.push({ id: 'g', title: 'Stará hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
+  const migrated = validateAppData(old);
+  assert.equal(migrated.games[0].mode, 'legacy');
+  assert.equal(migrated.games[0].units[0].id, 'u');
+});
+
+test('backup obnoví celý webový scenár, progres, prioritu a dnešný cieľ', () => {
+  const data = createEmptyAppData();
+  data.games.push({
+    id: 'script-game', mode: 'script', title: 'Nová hra', character: 'TULÁK',
+    deadline: '2026-08-27', daysOff: ['2026-08-15'], focusSectionId: 'section-1',
+    dailyTargets: { '2026-08-12': { speechIds: ['speech-1'], createdAt: '2026-08-12T08:00:00.000Z' } },
+    script: {
+      entries: [{ id: 'entry-1', sourceIndex: 0, rawText: 'TULÁK: Text.', text: 'Text.', style: '', type: 'speech', speaker: 'TULÁK', sectionId: 'section-1', speechId: 'speech-1', ambiguous: false }],
+      sections: [{ id: 'section-1', title: 'Prvé dejstvo', headingEntryId: null, order: 0 }],
+      speeches: [{ id: 'speech-1', speaker: 'TULÁK', sectionId: 'section-1', entryIds: ['entry-1'], text: 'Text.', order: 0, learnedAt: '2026-08-12T09:00:00.000Z' }],
+      speakers: ['TULÁK']
+    }
+  });
+  const restored = validateBackup(createBackup(data)).data.games[0];
+  assert.equal(restored.mode, 'script');
+  assert.equal(restored.script.entries[0].rawText, 'TULÁK: Text.');
+  assert.equal(restored.script.speeches[0].learnedAt, '2026-08-12T09:00:00.000Z');
+  assert.equal(restored.focusSectionId, 'section-1');
+  assert.deepEqual(restored.dailyTargets['2026-08-12'].speechIds, ['speech-1']);
+});
+
 test('odstránenie hry vymaže iba jej scény a zachová ostatné dáta', () => {
   const data = createEmptyAppData();
   const game = id => ({ id, title: id, character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: `${id}-unit`, text: 'Text.', minutes: 5 }] });

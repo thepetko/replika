@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Jednoduchý lokálny tréner divadelných replík so zachovaním kontextu.">
-  <meta name="theme-color" content="#f4f3ef">
+  <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
   <link rel="stylesheet" href="styles.css">
@@ -14,7 +14,7 @@
 
 <div class="app-shell">
   <header class="app-header">
-    <button class="brand-button" id="brandButton" type="button" aria-label="Otvoriť knižnicu replík">
+    <button class="brand-button" id="brandButton" type="button" aria-label="Otvoriť hry">
       <img class="brand-logo" src="replika-logo.png" alt="REPLIKA">
     </button>
     <div class="header-actions">
@@ -37,7 +37,7 @@
         <div class="page-actions"><button class="secondary" id="standaloneLibraryBtn" type="button">Samostatné texty</button><button class="primary" id="gamesImportBtn" type="button">Importovať scenár</button></div>
       </div>
       <p class="status-message" id="gamesMessage" role="status" aria-live="polite"></p>
-      <div class="empty-state hidden" id="emptyGames"><div class="empty-symbol" aria-hidden="true">“</div><h2>Pridaj prvú hru</h2><p>Importuj celý scenár, vyber postavu a Replika pripraví scény aj denný plán.</p><button class="primary" id="emptyGamesImportBtn" type="button">Importovať scenár</button></div>
+      <div class="empty-state hidden" id="emptyGames"><div class="empty-symbol" aria-hidden="true">“</div><h2>Pridaj prvú hru</h2><p>Importuj DOCX, vyber postavu a uč sa priamo v celom scenári bez zmeny jeho poradia.</p><button class="primary" id="emptyGamesImportBtn" type="button">Importovať scenár</button></div>
       <div class="rehearsal-list" id="gamesList"></div>
     </section>
 
@@ -50,13 +50,41 @@
         <button id="gameProgressTab" type="button" role="tab" aria-selected="false" aria-controls="gameProgressPanel">Pokrok</button>
       </nav>
       <div id="gamePlanPanel" role="tabpanel" aria-labelledby="gamePlanTab">
+        <section class="plan-calendar-section" aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Celý plán</p><h2 id="planDaysHeading">Kalendár</h2></div></div><p class="field-help" id="gameScheduleHelp">Vyber deň alebo pokračuj nižšie v chronologickom zozname.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div></section>
         <section class="game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><p class="focus-method">Prečítaj partnera → povedz svoju repliku → zakry text → zopakuj spamäti.</p><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div><div id="todayReviews"></div></section>
-        <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><h2 id="planDaysHeading">Kalendár</h2></div></div><p class="field-help" id="gameScheduleHelp">Vyber deň a otvor jeho učebné úseky.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div><div class="game-day-list" id="gameSchedule"></div></section>
+        <section class="upcoming-plan" aria-labelledby="upcomingDaysHeading"><div class="section-heading"><div><p class="eyebrow">Čo nasleduje</p><h2 id="upcomingDaysHeading">Ďalšie dni</h2></div></div><div class="game-day-list" id="gameSchedule"></div></section>
         <details class="optional-fields plan-settings"><summary>Upraviť termín a voľné dni</summary><div class="optional-grid"><div><label for="gameNewMaterialEnd">Nový text dokončiť do</label><input id="gameNewMaterialEnd" type="date"><p class="field-help">Neskoršie dni zostanú na opakovanie.</p></div><div><label for="gameDeadline">Finálny termín</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></details>
       </div>
       <section id="gameScenesPanel" class="hidden" role="tabpanel" aria-labelledby="gameScenesTab"><div class="section-heading"><div><h2 id="gameScenesHeading">Scény</h2><p class="field-help">Otvor celú scénu a trénuj v kontexte partnerov.</p></div></div><div class="rehearsal-list" id="gameScenes"></div></section>
       <section id="gameLinesPanel" class="hidden" role="tabpanel" aria-labelledby="gameLinesTab"><div class="section-heading"><div><h2>Repliky</h2><p class="field-help">Všetky učebné úseky v poradí scenára.</p></div></div><div class="all-lines-filters"><label for="gameLineSearch">Hľadať<input id="gameLineSearch" type="search" placeholder="Replika, partner alebo scéna"></label><label for="gameActFilter">Dejstvo<select id="gameActFilter"><option value="">Všetky</option></select></label></div><div class="game-day-list" id="gameAllUnits"></div></section>
       <section id="gameProgressPanel" class="hidden" role="tabpanel" aria-labelledby="gameProgressTab"><div class="section-heading"><div><h2>Pokrok</h2><p class="field-help">Stav celej roly a história zvládnutých úsekov.</p></div></div><div class="metric-grid game-metrics" id="gameMetrics"></div><details class="optional-fields" id="completedUnitsPanel"><summary>Hotové úseky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details></section>
+    </section>
+
+    <section class="view script-game-view hidden" id="scriptGameView" aria-labelledby="scriptGameHeading">
+      <div class="training-topbar script-game-heading">
+        <button class="back-button" id="backFromScriptGameBtn" type="button">← Hry</button>
+        <div class="training-identity"><h1 id="scriptGameHeading">Hra</h1><p id="scriptGameMeta"></p></div>
+      </div>
+      <div class="script-toolbar" aria-label="Ovládanie scenára">
+        <div class="script-progress-copy"><strong id="scriptProgressLabel">0 z 0 replík</strong><span id="scriptPaceLabel"></span></div>
+        <div class="mini-progress script-progress" aria-hidden="true"><span id="scriptProgressBar"></span></div>
+        <div class="script-toolbar-actions">
+          <button class="primary" id="goToTodayTargetBtn" type="button">Prejsť na dnešný cieľ</button>
+          <button class="secondary" id="toggleAllScriptLinesBtn" type="button" aria-pressed="false">Odkryť všetky moje repliky</button>
+          <label class="script-section-jump" for="scriptSectionSelect">Prejsť na časť<select id="scriptSectionSelect"></select></label>
+        </div>
+      </div>
+      <section class="script-today" id="scriptTodayPanel" aria-labelledby="scriptTodayHeading"></section>
+      <details class="optional-fields script-settings">
+        <summary>Upraviť termín a voľné dni</summary>
+        <div class="optional-grid">
+          <div><label for="scriptGameDeadline">Termín naučenia</label><input id="scriptGameDeadline" type="date"></div>
+          <div><label for="scriptGameDayOff">Voľný deň</label><div class="compact-actions"><input id="scriptGameDayOff" type="date"><button id="addScriptGameDayOffBtn" type="button">Pridať</button></div></div>
+        </div>
+        <div class="day-off-list" id="scriptGameDaysOff"></div>
+      </details>
+      <div class="script-document" id="scriptDocument" aria-label="Celý scenár"></div>
+      <p class="status-message" id="scriptGameMessage" role="status" aria-live="polite"></p>
     </section>
 
     <section class="view hidden" id="libraryView" aria-labelledby="libraryHeading">
@@ -160,7 +188,7 @@
         <div class="section-heading">
           <div>
             <h2 id="scriptImportHeading">Importovať celý scenár</h2>
-            <p class="field-help">Vyber Word dokument alebo vlož jeho text. Scény sa uložia až po tvojej kontrole.</p>
+            <p class="field-help">Vyber DOCX. Replika zachová každý odsek a pôvodné poradie celého scenára.</p>
           </div>
           <button class="text-button" id="cancelScriptImportBtn" type="button">Zrušiť</button>
         </div>
@@ -169,12 +197,6 @@
             <button class="primary" id="scriptImportFileButton" type="button">Vybrať DOCX</button>
           </div>
           <input id="scriptImportFile" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden tabindex="-1">
-          <details class="optional-fields">
-            <summary>Vložiť text namiesto súboru <span>voliteľné</span></summary>
-            <label for="scriptImportText">Text scenára</label>
-            <textarea id="scriptImportText" placeholder="TULÁK: Prvá replika...&#10;IRIS: Odpoveď..."></textarea>
-            <div class="form-actions"><button id="prepareTextImportBtn" type="button">Pripraviť vložený text</button></div>
-          </details>
           <label for="scriptImportCharacter">Moja postava</label>
           <select id="scriptImportCharacter" disabled><option value="">Najprv načítaj scenár</option></select>
           <div id="gameImportOptions" class="hidden">
@@ -182,19 +204,14 @@
             <input id="scriptImportGameTitle" maxlength="120">
             <label for="scriptImportDeadline">Dokedy sa chcem naučiť text</label>
             <input id="scriptImportDeadline" type="date">
-            <label for="scriptImportNewMaterialEnd">Nový text dokončiť do</label>
-            <input id="scriptImportNewMaterialEnd" type="date">
             <label for="scriptImportDayOff">Voľný deň <span class="field-help">voliteľné</span></label>
             <div class="compact-actions"><input id="scriptImportDayOff" type="date"><button id="addImportDayOffBtn" type="button">Pridať voľno</button></div>
             <div class="day-off-list" id="importDaysOff"></div>
-            <div class="import-review" id="scriptImportUnits"></div>
           </div>
           <div class="scene-preview hidden" id="scriptImportPreview" aria-live="polite"></div>
           <div class="import-review" id="scriptImportIssues"></div>
-          <div class="import-review" id="scriptImportCandidates"></div>
           <div class="form-actions">
-            <button class="primary hidden" id="repairScriptImportBtn" type="button">Opraviť cue v existujúcej hre</button>
-            <button class="primary" id="confirmScriptImportBtn" type="button" disabled>Vytvoriť hru a plán</button>
+            <button class="primary" id="confirmScriptImportBtn" type="button" disabled>Vytvoriť hru</button>
           </div>
         </form>
       </section>

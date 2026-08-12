@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { enrichStudyUnitPrompts, mergeStudyUnitProgress } from '../src/game-dialogue.js';
+import { enrichStudyUnitPrompts, mergeStudyUnitProgress, setStudyUnitCompletion } from '../src/game-dialogue.js';
 
 test('starší učebný úsek doplní plné repliky partnerov v poradí dialógu', () => {
   const units = [{ id: 'u1', order: 0, sceneTitle: 'Prvý obraz', text: 'Prídem.\nUž idem.', prompts: [{ cueSpeaker: 'VSTUP', cue: 'Vlastný nástup.', text: 'Prídem.\nUž idem.' }] }];
@@ -65,4 +65,14 @@ test('označené chýbajúce cue sa ešte môže doplniť zo zachovanej scény',
   assert.equal(enrichStudyUnitPrompts(units, scenes, 'TULÁK'), true);
   assert.equal(units[0].prompts[0].cueSpeaker, 'LUMOK');
   assert.equal(units[0].prompts[0].cueMissing, undefined);
+});
+
+test('dokončenie sa zapíše do aktuálneho úseku podľa ID, nie do zastaranej referencie', () => {
+  const games = [{ id: 'game-1', lockedPlans: {}, units: [{ id: 'unit-1', completedAt: null }, { id: 'unit-2', completedAt: null }] }];
+  const completedAt = '2026-08-12T10:00:00.000Z';
+
+  assert.equal(setStudyUnitCompletion(games, 'game-1', 'unit-1', completedAt, { date: '2026-08-14', unitIds: ['unit-1', 'unit-2'] }), true);
+  assert.equal(games[0].units[0].completedAt, completedAt);
+  assert.deepEqual(games[0].lockedPlans['2026-08-14'], ['unit-1', 'unit-2']);
+  assert.equal(setStudyUnitCompletion(games, 'game-1', 'missing', completedAt), false);
 });
