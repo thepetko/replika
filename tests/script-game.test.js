@@ -28,7 +28,7 @@ const paragraphs = [
 function makeGame(overrides = {}) {
   const script = parseScriptDocument(paragraphs);
   return {
-    id: 'game', mode: 'script', title: 'Hra', character: 'TULÁK',
+    id: 'game', title: 'Hra', character: 'TULÁK',
     deadline: '2026-08-15', daysOff: [], focusSectionId: null,
     script, dailyTargets: {}, ...overrides
   };

@@ -3,13 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   APP_STORAGE_KEY,
-  LEGACY_TEXT_KEY,
   SCHEMA_VERSION,
   clearAppData,
   createBackup,
   createEmptyAppData,
   loadAppData,
-  migrateLegacyData,
   removeGameData,
   replaceFromBackup,
   saveAppData,
@@ -27,6 +25,18 @@ function memoryStorage(initial = {}) {
   };
 }
 
+function scriptGame(id = 'script-game') {
+  return {
+    id, title: 'Nová hra', character: 'TULÁK', deadline: '2026-08-27', daysOff: [], focusSectionId: null, dailyTargets: {},
+    script: {
+      entries: [{ id: `${id}-entry`, sourceIndex: 0, rawText: 'TULÁK: Text.', text: 'Text.', style: '', type: 'speech', speaker: 'TULÁK', sectionId: `${id}-section`, speechId: `${id}-speech`, ambiguous: false }],
+      sections: [{ id: `${id}-section`, title: 'Prvé dejstvo', headingEntryId: null, order: 0 }],
+      speeches: [{ id: `${id}-speech`, speaker: 'TULÁK', sectionId: `${id}-section`, entryIds: [`${id}-entry`], text: 'Text.', order: 0, learnedAt: null }],
+      speakers: ['TULÁK']
+    }
+  };
+}
+
 test('prázdne úložisko vytvorí platnú schému', () => {
   const data = loadAppData(memoryStorage());
 
@@ -35,17 +45,17 @@ test('prázdne úložisko vytvorí platnú schému', () => {
   assert.deepEqual(data.activity, { days: {} });
 });
 
-test('úplný reset odstráni aplikáciu aj pôvodný samostatný text', () => {
+test('úplný reset odstráni aplikáciu aj opustený lokálny kľúč', () => {
   const storage = memoryStorage({
     [APP_STORAGE_KEY]: JSON.stringify(createEmptyAppData()),
-    [LEGACY_TEXT_KEY]: 'Starý text.',
+    replikaText: 'Starý text.',
     unrelated: 'ponechať'
   });
 
   clearAppData(storage);
 
   assert.equal(storage.getItem(APP_STORAGE_KEY), null);
-  assert.equal(storage.getItem(LEGACY_TEXT_KEY), null);
+  assert.equal(storage.getItem('replikaText'), null);
   assert.equal(storage.getItem('unrelated'), 'ponechať');
 });
 
@@ -80,22 +90,6 @@ test('uloží a obnoví reláciu v kumulatívnej kontrole', () => {
   saveAppData(data, storage, '2026-07-08T10:00:00.000Z');
 
   assert.equal(loadAppData(storage).rehearsals[0].session.state.phase, 'checkpoint');
-});
-
-test('starý replikaText sa migruje až po výslovnom volaní', () => {
-  const storage = memoryStorage({ [LEGACY_TEXT_KEY]: 'Starý text.' });
-  const original = loadAppData(storage);
-
-  assert.equal(original.rehearsals.length, 0);
-  const migrated = migrateLegacyData(original, storage, {
-    id: 'legacy-1',
-    title: 'Importovaná replika',
-    now: '2026-07-08T10:00:00.000Z'
-  });
-
-  assert.equal(migrated.rehearsals[0].text, 'Starý text.');
-  assert.equal(storage.getItem(LEGACY_TEXT_KEY), null);
-  assert.ok(storage.getItem(APP_STORAGE_KEY));
 });
 
 test('platný backup obnoví knižnicu aj aktivitu', () => {
@@ -161,38 +155,41 @@ test('migrácia schémy 2 zachová existujúcu repliku a prijme scénu', () => {
   assert.equal(loaded.rehearsals[1].type, 'scene');
 });
 
-test('backup zachová hru s plánom a voľnými dňami', () => {
+test('backup zachová celý scenár a voľné dni', () => {
   const data = createEmptyAppData();
-  data.games.push({
-    id: 'game-1', title: 'Hra', character: 'ANNA', startDate: '2026-08-10', newMaterialEnd: '2026-08-24', deadline: '2026-08-27', daysOff: ['2026-08-15'], lockedPlans: { '2026-08-10': ['unit-1'] },
-    units: [{ id: 'unit-1', sceneTitle: 'I. dejstvo', section: 'I. dejstvo', text: 'Text.', minutes: 8, completedAt: null, weak: true }]
-  });
+  const game = scriptGame('game-1'); game.daysOff = ['2026-08-15']; data.games.push(game);
   const restored = validateBackup(createBackup(data));
   assert.equal(restored.data.games[0].daysOff[0], '2026-08-15');
-  assert.equal(restored.data.games[0].units[0].minutes, 8);
-  assert.deepEqual(restored.data.games[0].lockedPlans['2026-08-10'], ['unit-1']);
-  assert.equal(restored.data.games[0].units[0].weak, true);
+  assert.equal(restored.data.games[0].script.speeches[0].text, 'Text.');
 });
 
-test('schéma 5 bezpečne doplní konfiguráciu dynamického plánu', () => {
-  const old = createEmptyAppData(); old.schemaVersion = 5;
-  old.games.push({ id: 'g', title: 'Stará hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
+test('migrácia ponechá iba hry s celým scenárom a odstráni technické označenie režimu', () => {
+  const old = createEmptyAppData(); old.schemaVersion = 7;
+  old.games.push({ id: 'old', title: 'Pôvodná hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
+  old.games.push({ ...scriptGame('kept'), mode: 'script' });
   const migrated = validateAppData(old);
-  assert.equal(migrated.schemaVersion, SCHEMA_VERSION); assert.equal(migrated.games[0].newMaterialEnd, '2026-08-24'); assert.deepEqual(migrated.games[0].lockedPlans, {});
+  assert.deepEqual(migrated.games.map(game => game.id), ['kept']);
+  assert.equal(Object.hasOwn(migrated.games[0], 'mode'), false);
 });
 
-test('migrácia označí existujúcu hru ako legacy bez straty plánu', () => {
-  const old = createEmptyAppData(); old.schemaVersion = 6;
-  old.games.push({ id: 'g', title: 'Stará hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
-  const migrated = validateAppData(old);
-  assert.equal(migrated.games[0].mode, 'legacy');
-  assert.equal(migrated.games[0].units[0].id, 'u');
+test('načítanie uloží zjednotený model späť a pôvodnú hru už nedrží v úložisku', () => {
+  const old = createEmptyAppData(); old.schemaVersion = 7;
+  old.games.push({ id: 'old', title: 'Pôvodná hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
+  old.games.push({ ...scriptGame('kept'), mode: 'script' });
+  const storage = memoryStorage({ [APP_STORAGE_KEY]: JSON.stringify(old) });
+
+  const loaded = loadAppData(storage);
+  const persisted = JSON.parse(storage.getItem(APP_STORAGE_KEY));
+
+  assert.deepEqual(loaded.games.map(game => game.id), ['kept']);
+  assert.deepEqual(persisted.games.map(game => game.id), ['kept']);
+  assert.equal(Object.hasOwn(persisted.games[0], 'mode'), false);
 });
 
 test('backup obnoví celý webový scenár, progres, prioritu a dnešný cieľ', () => {
   const data = createEmptyAppData();
   data.games.push({
-    id: 'script-game', mode: 'script', title: 'Nová hra', character: 'TULÁK',
+    id: 'script-game', title: 'Nová hra', character: 'TULÁK',
     deadline: '2026-08-27', daysOff: ['2026-08-15'], focusSectionId: 'section-1',
     dailyTargets: { '2026-08-12': { speechIds: ['speech-1'], createdAt: '2026-08-12T08:00:00.000Z' } },
     script: {
@@ -203,7 +200,7 @@ test('backup obnoví celý webový scenár, progres, prioritu a dnešný cieľ',
     }
   });
   const restored = validateBackup(createBackup(data)).data.games[0];
-  assert.equal(restored.mode, 'script');
+  assert.equal(Object.hasOwn(restored, 'mode'), false);
   assert.equal(restored.script.entries[0].rawText, 'TULÁK: Text.');
   assert.equal(restored.script.speeches[0].learnedAt, '2026-08-12T09:00:00.000Z');
   assert.equal(restored.focusSectionId, 'section-1');
@@ -212,7 +209,7 @@ test('backup obnoví celý webový scenár, progres, prioritu a dnešný cieľ',
 
 test('odstránenie hry vymaže iba jej scény a zachová ostatné dáta', () => {
   const data = createEmptyAppData();
-  const game = id => ({ id, title: id, character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: `${id}-unit`, text: 'Text.', minutes: 5 }] });
+  const game = id => ({ ...scriptGame(id), title: id });
   const scene = (id, gameId) => ({ id, gameId, type: 'scene', title: id, text: 'A: Text.', character: 'A', parsed: { entries: [{ type: 'speech', speaker: 'A', text: 'Text.' }] } });
   data.games.push(game('game-1'), game('game-2'));
   data.rehearsals.push(

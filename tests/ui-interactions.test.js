@@ -49,17 +49,14 @@ test('nápoveda počíta iba slová mimo scénických poznámok', () => {
   );
 });
 
-test('denný plán má v DOM poradí kalendár, dnešné úlohy a ďalšie dni', () => {
+test('hra používa iba celý scenár bez starého detailu a prepínača režimov', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
-  const calendar = html.indexOf('id="gameCalendar"');
-  const today = html.indexOf('id="todayPlan"');
-  const upcoming = html.indexOf('id="gameSchedule"');
-
-  assert.ok(calendar >= 0 && calendar < today);
-  assert.ok(today < upcoming);
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /id="gameDetailView"|Starší import|Nahrať znova v novom režime/u);
+  assert.doesNotMatch(source, /game\.mode|mode:\s*'script'|Nahrať znova v novom režime/u);
 });
 
-test('nový režim hry má jednu obrazovku bez paralelných tabov', () => {
+test('hra má jednu obrazovku bez paralelných tabov', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const start = html.indexOf('id="scriptGameView"');
   const end = html.indexOf('id="libraryView"');
@@ -68,6 +65,15 @@ test('nový režim hry má jednu obrazovku bez paralelných tabov', () => {
   assert.match(view, /id="scriptDocument"/u);
   assert.match(view, /id="goToTodayTargetBtn"/u);
   assert.doesNotMatch(view, /role="tablist"/u);
+});
+
+test('ovládanie scenára používa kompaktnú spoločnú lištu', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const toolbar = html.slice(html.indexOf('class="script-toolbar"'), html.indexOf('id="scriptTodayPanel"'));
+  assert.match(toolbar, /class="script-toolbar-main"/u);
+  assert.match(toolbar, />Dnešný cieľ</u);
+  assert.match(toolbar, />Odkryť repliky</u);
+  assert.match(toolbar, /aria-label="Prejsť na časť scenára"/u);
 });
 
 test('import novej hry ponúka iba DOCX a nevytvára učebné úseky', () => {

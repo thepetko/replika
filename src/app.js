@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=24';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=25';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=24';
-import { parseText, PARSER_VERSION } from './parser.js?v=24';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=24';
-import { fingerprintScript } from './script-importer.js?v=24';
-import { readDocxParagraphs } from './docx-reader.js?v=24';
+} from './learning-engine.js?v=25';
+import { parseText, PARSER_VERSION } from './parser.js?v=25';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=25';
+import { fingerprintScript } from './script-importer.js?v=25';
+import { readDocxParagraphs } from './docx-reader.js?v=25';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=24';
+} from './scene-learning-engine.js?v=25';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,9 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=24';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=24';
-import { addPlanDays, buildSchedule, estimateMinutes, localDateKey, unitWeight } from './game-plan.js?v=24';
-import { enrichStudyUnitPrompts, setStudyUnitCompletion } from './game-dialogue.js?v=24';
+} from './storage.js?v=25';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=25';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=25';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -41,12 +40,11 @@ import {
   scriptProgress,
   setScriptFocus,
   setScriptSpeechLearned
-} from './script-game.js?v=24';
+} from './script-game.js?v=25';
 
 const byId = id => document.getElementById(id);
 const views = {
   games: byId('gamesView'),
-  gameDetail: byId('gameDetailView'),
   scriptGame: byId('scriptGameView'),
   library: byId('libraryView'),
   progress: byId('progressView'),
@@ -58,11 +56,6 @@ let storageHealthy = true;
 let currentView = 'games';
 let currentRehearsalId = null;
 let currentGameId = null;
-let activeGameTab = 'plan';
-let selectedPlanDate = null;
-let lastPlanAction = null;
-let planFeedbackTimer = null;
-const hiddenGameUnits = new Set();
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
@@ -111,44 +104,11 @@ function normalizeRehearsal(rehearsal) {
 function normalizeGame(game) {
   const deadline = game.deadline ?? localDateKey();
   const createdAt = game.createdAt ?? nowIso();
-  if (game.mode === 'script') {
-    return {
-      id: game.id, mode: 'script', title: game.title || 'Bez názvu', character: game.character ?? '',
-      importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt),
-      deadline, daysOff: [...new Set(game.daysOff ?? [])].sort(), focusSectionId: game.focusSectionId ?? null,
-      script: game.script, dailyTargets: game.dailyTargets ?? {}, createdAt, updatedAt: game.updatedAt ?? nowIso()
-    };
-  }
-  const units = (game.units ?? []).map((unit, index) => {
-    const sourcePrompts = unit.prompts?.length
-      ? unit.prompts
-      : [{ cueSpeaker: unit.cueSpeaker || 'VSTUP', cue: unit.cue || 'Vlastný nástup.', cueFull: unit.cueFull || '', text: unit.text }];
-    const prompts = sourcePrompts.map(prompt => {
-      const cueMissing = prompt.cueMissing || (prompt.cueSpeaker === 'VSTUP' && prompt.cue === 'Vlastný nástup.');
-      return cueMissing
-        ? { ...prompt, cueMissing: true, cueSpeaker: 'CHÝBA CUE', cue: 'Partnerova replika sa v staršom importe neuložila.' }
-        : prompt;
-    });
-    const words = unit.words || (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length;
-    return {
-      ...unit,
-      prompts,
-      cueSpeaker: prompts[0].cueSpeaker,
-      cue: prompts[0].cue,
-      words,
-      weight: unit.weight || Math.max(Number(unit.minutes || 0) * 8, words),
-      difficulty: unit.difficulty || 'stredná',
-      weak: Boolean(unit.weak),
-      order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index,
-      completedAt: unit.completedAt ?? null
-    };
-  });
   return {
-    id: game.id, mode: 'legacy', title: game.title || 'Bez názvu', character: game.character ?? '',
+    id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '',
     importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt),
-    deadline, newMaterialEnd: game.newMaterialEnd ?? addPlanDays(deadline, -3),
-    daysOff: [...new Set(game.daysOff ?? [])].sort(), lockedPlans: game.lockedPlans ?? {}, units,
-    createdAt, updatedAt: game.updatedAt ?? nowIso()
+    deadline, daysOff: [...new Set(game.daysOff ?? [])].sort(), focusSectionId: game.focusSectionId ?? null,
+    script: game.script, dailyTargets: game.dailyTargets ?? {}, createdAt, updatedAt: game.updatedAt ?? nowIso()
   };
 }
 
@@ -315,12 +275,6 @@ function replikaCount(count) {
   return `${count} ${count === 1 ? 'replika' : count >= 2 && count <= 4 ? 'repliky' : 'replík'}`;
 }
 
-function gameScenes(game) { return appData.rehearsals.filter(item => item.type === 'scene' && item.gameId === game.id); }
-
-function enrichLegacyGamePrompts(game) {
-  return enrichStudyUnitPrompts(game.units, gameScenes(game).map(scene => ({ title: scene.title, entries: scene.parsed?.entries ?? [] })), game.character);
-}
-
 function setGamesMessage(message = '', isError = false) {
   const node = byId('gamesMessage'); node.textContent = message; node.classList.toggle('error', isError);
 }
@@ -331,32 +285,25 @@ function renderGames() {
   byId('emptyGames').classList.toggle('hidden', games.length > 0);
   for (const game of games) {
     const card = element('article', 'rehearsal-card');
-    const progress = game.mode === 'script'
-      ? scriptProgress(game)
-      : { learned: game.units.filter(unit => unit.completedAt).length, total: game.units.length, percent: game.units.length ? Math.round(game.units.filter(unit => unit.completedAt).length / game.units.length * 100) : 0 };
+    const progress = scriptProgress(game);
     const { learned: done, total, percent } = progress;
     const top = element('div', 'card-topline'); const group = element('div', 'card-title-group');
-    const meta = game.mode === 'script'
-      ? `${game.character} · celý scenár · termín ${formatPlanDate(game.deadline)}`
-      : `${game.character} · ${gameScenes(game).length} scén · termín ${formatPlanDate(game.deadline)}`;
+    const meta = `${game.character} · celý scenár · termín ${formatPlanDate(game.deadline)}`;
     group.append(element('h2', '', game.title), element('p', 'card-meta', meta));
-    if (game.mode !== 'script') group.append(element('span', 'status-chip legacy-chip', 'Starší import'));
     const tools = element('div', 'game-card-tools');
     const menu = element('details', 'card-menu game-card-menu');
     const summary = element('summary', '', '•••'); summary.setAttribute('aria-label', `Možnosti hry ${game.title}`);
     const menuContent = element('div', 'card-menu-panel');
-    const importButton = element('button', '', game.mode === 'script' ? 'Importovať ďalšiu hru' : 'Nahrať znova v novom režime'); importButton.type = 'button';
-    importButton.addEventListener('click', () => { menu.removeAttribute('open'); openScriptImport(); });
     const exportButton = element('button', '', 'Exportovať zálohu'); exportButton.type = 'button';
     exportButton.addEventListener('click', () => { menu.removeAttribute('open'); downloadBackup(); setGamesMessage('Záloha všetkých dát bola pripravená na stiahnutie.'); });
     const deleteButton = element('button', 'danger-text', 'Odstrániť hru'); deleteButton.type = 'button';
     deleteButton.addEventListener('click', () => { menu.removeAttribute('open'); deleteGame(game.id); });
-    menuContent.append(importButton, exportButton, deleteButton); menu.append(summary, menuContent);
+    menuContent.append(exportButton, deleteButton); menu.append(summary, menuContent);
     tools.append(element('span', 'status-chip status-dark', `${percent} %`), menu);
     top.append(group, tools);
     const track = element('div', 'mini-progress'); const bar = element('span'); bar.style.width = `${percent}%`; track.append(bar);
     const open = element('button', 'primary', 'Otvoriť hru'); open.type = 'button'; open.addEventListener('click', () => openGame(game.id));
-    card.append(top, element('div', 'card-info', game.mode === 'script' ? `${done} z ${replikaCount(total)} hotových` : `${done} z ${total} úsekov hotových`), track, open); list.append(card);
+    card.append(top, element('div', 'card-info', `${done} z ${replikaCount(total)} hotových`), track, open); list.append(card);
   }
 }
 
@@ -364,9 +311,8 @@ function showGames() { currentGameId = null; currentRehearsalId = null; showView
 
 async function deleteGame(id) {
   const game = findGame(id); if (!game) return;
-  const content = game.mode === 'script' ? 'celý scenár a progres' : `plán, progres a ${gameScenes(game).length} priradených scén`;
   const confirmed = await askConfirm(
-    `Odstrániť hru „${game.title}“? Vymaže sa ${content}. Samostatné texty a celkový historický čas zostanú. Hru nebude možné obnoviť bez exportovanej zálohy.`,
+    `Odstrániť hru „${game.title}“? Vymaže sa celý scenár a progres. Samostatné texty a celkový historický čas zostanú. Hru nebude možné obnoviť bez exportovanej zálohy.`,
     'Odstrániť hru'
   );
   if (!confirmed) return;
@@ -374,172 +320,6 @@ async function deleteGame(id) {
   if (!persist()) return;
   setGamesMessage(`Hra „${game.title}“ bola odstránená.`);
   renderGames();
-}
-
-function renderPlanChange() {
-  const render = () => renderGameDetail();
-  const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (!reduceMotion && typeof document.startViewTransition === 'function') document.startViewTransition(render);
-  else render();
-}
-
-function renderGameUnit(unit, game, planContext = {}) {
-  const row = element('article', `game-unit study-line-card${unit.completedAt ? ' done' : ''}${unit.weak ? ' weak' : ''}`);
-  const top = element('div', 'study-line-top');
-  const label = unit.line ? `Replika ${unit.line}${unit.part || ''}` : `Úsek ${Number(unit.order ?? 0) + 1}`;
-  const identity = element('div'); identity.append(element('strong', 'line-number', label), element('span', `difficulty difficulty-${unit.difficulty}`, unit.difficulty));
-  const weak = element('button', `weak-button${unit.weak ? ' active' : ''}`, unit.weak ? '★ Ťažké' : '☆ Ťažké'); weak.type = 'button'; weak.setAttribute('aria-label', unit.weak ? 'Zrušiť označenie ťažkého miesta' : 'Označiť ako ťažké miesto'); weak.setAttribute('aria-pressed', String(unit.weak));
-  weak.addEventListener('click', () => { unit.weak = !unit.weak; game.updatedAt = nowIso(); persist(); renderPlanChange(); }); top.append(identity, weak);
-  const section = unit.section || unit.act || ''; const scene = unit.sceneTitle || unit.beat || '';
-  const place = section && scene && normalizedDialogueLabel(scene).includes(normalizedDialogueLabel(section)) ? scene : [section, scene].filter(Boolean).join(' · ');
-  const context = element('p', 'game-unit-meta', `${place}${place ? ' · ' : ''}${unit.minutes} min`);
-  const prompts = element('div', 'study-prompts');
-  for (const prompt of unit.prompts ?? [{ cueSpeaker: unit.cueSpeaker, cue: unit.cue, text: unit.text }]) {
-    const pair = element('div', 'study-prompt'); const cue = element('div', `dialogue-line partner-line${prompt.cueMissing ? ' cue-missing' : ''}`); cue.append(element('strong', 'dialogue-speaker', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cueFull || prompt.cue || 'Začiatok scény alebo vlastný nástup.'));
-    const own = element('div', 'dialogue-line own-dialogue'); own.append(element('strong', 'dialogue-speaker', game.character));
-    own.append(hiddenGameUnits.has(unit.id) ? element('div', 'hidden-line', 'Povedz repliku spamäti.') : element('p', 'own-line', prompt.text)); pair.append(cue, own); prompts.append(pair);
-  }
-  const actions = element('div', 'study-line-actions'); const reveal = element('button', 'secondary', hiddenGameUnits.has(unit.id) ? 'Ukázať moje repliky' : 'Zakryť moje repliky'); reveal.type = 'button';
-  reveal.addEventListener('click', () => { if (hiddenGameUnits.has(unit.id)) hiddenGameUnits.delete(unit.id); else hiddenGameUnits.add(unit.id); renderGameDetail(); });
-  const doneControl = element('div', 'done-control');
-  const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Viem po cue: ${unit.sceneTitle}`);
-  doneControl.append(checkbox, element('span', '', 'Viem po cue'));
-  const confirmation = element('span', 'unit-confirmation', '✓ Hotovo'); confirmation.setAttribute('aria-live', 'polite');
-  checkbox.addEventListener('change', () => {
-    const completed = checkbox.checked;
-    const previousCompletedAt = unit.completedAt ?? null;
-    const completedAt = completed ? nowIso() : null;
-    checkbox.disabled = true;
-    row.classList.add(completed ? 'is-completing' : 'is-restoring');
-    confirmation.textContent = completed ? '✓ Hotovo' : '↩ Späť v pláne';
-    if (!setStudyUnitCompletion(appData.games, game.id, unit.id, completedAt, planContext)) {
-      checkbox.checked = !completed; checkbox.disabled = false; row.classList.remove('is-completing', 'is-restoring'); return;
-    }
-    const currentGame = findGame(game.id); currentGame.updatedAt = nowIso();
-    if (!persist()) {
-      setStudyUnitCompletion(appData.games, game.id, unit.id, previousCompletedAt);
-      checkbox.checked = !completed; checkbox.disabled = false; row.classList.remove('is-completing', 'is-restoring'); return;
-    }
-    const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const delay = reduceMotion ? 0 : completed ? 480 : 260;
-    setTimeout(() => {
-      if (currentView !== 'gameDetail' || currentGameId !== game.id) return;
-      lastPlanAction = { completed, unitId: unit.id }; renderPlanChange();
-    }, delay);
-  });
-  actions.append(reveal, doneControl); row.append(top, context, prompts, actions, confirmation); return row;
-}
-
-function calendarDateRange(start, end) {
-  if (!start || !end || start > end) return [];
-  const dates = []; const current = new Date(`${start}T12:00:00`); const last = new Date(`${end}T12:00:00`);
-  while (current <= last) { dates.push(localDateKey(current)); current.setDate(current.getDate() + 1); }
-  return dates;
-}
-
-function renderPlanCalendar(game, plan, today) {
-  const calendar = byId('gameCalendar'); calendar.replaceChildren();
-  const dates = calendarDateRange(game.startDate || today, game.deadline);
-  if (!dates.length) { calendar.append(element('p', 'status-message error', 'Termín je pred dnešným dňom. Zvoľ nový termín.')); return; }
-  if (!selectedPlanDate || !dates.includes(selectedPlanDate)) selectedPlanDate = dates.includes(today) ? today : dates[0];
-  const daysOff = new Set(game.daysOff);
-  const months = new Map(); for (const key of dates) { const date = new Date(`${key}T12:00:00`); const month = `${date.getFullYear()}-${date.getMonth()}`; if (!months.has(month)) months.set(month, []); months.get(month).push({ key, date }); }
-  for (const monthDates of months.values()) {
-    const month = element('section', 'calendar-month');
-    month.append(element('h3', '', new Intl.DateTimeFormat('sk-SK', { month: 'long', year: 'numeric' }).format(monthDates[0].date)));
-    const week = element('div', 'calendar-weekdays'); for (const label of ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne']) week.append(element('span', '', label)); month.append(week);
-    const grid = element('div', 'calendar-grid');
-    const firstOffset = (monthDates[0].date.getDay() + 6) % 7; for (let index = 0; index < firstOffset; index += 1) grid.append(element('span', 'calendar-blank'));
-    for (const { key, date } of monthDates) {
-      const tasks = plan.schedule[key] ?? []; const reviewCount = plan.reviews[key]?.length ?? 0; const moved = key < today && tasks.some(unit => !unit.completedAt); const button = element('button', `calendar-day${key === today ? ' today' : ''}${key === selectedPlanDate ? ' selected' : ''}${daysOff.has(key) ? ' off' : ''}${moved ? ' moved' : ''}`);
-      button.type = 'button'; button.setAttribute('aria-pressed', String(key === selectedPlanDate)); button.setAttribute('aria-label', `${formatPlanDate(key)}${daysOff.has(key) ? ', voľný deň' : `, ${tasks.length} nových úsekov, ${reviewCount} opakovaní`}`);
-      button.append(element('strong', '', String(date.getDate())));
-      if (daysOff.has(key)) button.append(element('span', 'calendar-off', 'voľno'));
-      else if (moved) button.append(element('span', 'calendar-load', `${tasks.length} · presunuté`));
-      else if (tasks.length || reviewCount) button.append(element('span', 'calendar-load', `${tasks.length} nové${reviewCount ? ` · ↻ ${reviewCount}` : ''}`));
-      button.addEventListener('click', () => {
-        selectedPlanDate = key; renderGameDetail();
-        const target = key === today ? byId('todayPlanHeading') : byId(`plan-day-${key}`);
-        target?.scrollIntoView({ block: 'start', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-      }); grid.append(button);
-    }
-    month.append(grid); calendar.append(month);
-  }
-}
-
-function renderAllGameUnits(game) {
-  const search = byId('gameLineSearch'); const filter = byId('gameActFilter'); const box = byId('gameAllUnits');
-  const acts = [...new Set(game.units.map(unit => unit.section || unit.act).filter(Boolean))]; const current = filter.value;
-  filter.replaceChildren(new Option('Všetky', ''), ...acts.map(act => new Option(act, act))); filter.value = acts.includes(current) ? current : '';
-  const query = search.value.trim().toLocaleLowerCase('sk'); box.replaceChildren();
-  const visible = [...game.units].sort((a, b) => Number(a.order) - Number(b.order)).filter(unit => {
-    const act = unit.section || unit.act || ''; const haystack = `${unit.text} ${unit.cue} ${unit.sceneTitle} ${(unit.prompts ?? []).map(prompt => `${prompt.cue} ${prompt.text}`).join(' ')}`.toLocaleLowerCase('sk');
-    return (!filter.value || act === filter.value) && haystack.includes(query);
-  });
-  if (!visible.length) box.append(element('p', 'muted-copy', 'Nenašiel sa žiadny úsek.'));
-  else visible.forEach(unit => box.append(renderGameUnit(unit, game)));
-}
-
-function showGameTab(tab, focus = false) {
-  activeGameTab = ['plan', 'scenes', 'lines', 'progress'].includes(tab) ? tab : 'plan';
-  const tabs = { plan: byId('gamePlanTab'), scenes: byId('gameScenesTab'), lines: byId('gameLinesTab'), progress: byId('gameProgressTab') };
-  const panels = { plan: byId('gamePlanPanel'), scenes: byId('gameScenesPanel'), lines: byId('gameLinesPanel'), progress: byId('gameProgressPanel') };
-  for (const key of Object.keys(tabs)) {
-    const active = key === activeGameTab; tabs[key].classList.toggle('active', active); tabs[key].setAttribute('aria-selected', String(active)); tabs[key].tabIndex = active ? 0 : -1; panels[key].classList.toggle('hidden', !active);
-  }
-  if (focus) { tabs[activeGameTab].focus(); panels[activeGameTab].scrollIntoView({ block: 'start', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
-}
-
-function renderGameDetail() {
-  const game = findGame(currentGameId); if (!game) return showGames();
-  if (enrichLegacyGamePrompts(game)) { game.updatedAt = nowIso(); persist(); }
-  byId('gameDetailHeading').textContent = game.title; byId('gameDetailMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
-  const today = localDateKey(); const options = { start: today, calendarStart: game.startDate, newMaterialEnd: game.newMaterialEnd, deadline: game.deadline, daysOff: game.daysOff, lockedPlans: game.lockedPlans };
-  let plan = buildSchedule(game.units, options);
-  if (!Object.hasOwn(game.lockedPlans, today) && today <= game.deadline && !game.daysOff.includes(today)) { game.lockedPlans[today] = (plan.schedule[today] ?? []).map(unit => unit.id); persist(); plan = buildSchedule(game.units, options); }
-  const done = game.units.filter(unit => unit.completedAt).length; const total = game.units.length; const remaining = plan.totalMinutes;
-  const totalWeight = game.units.reduce((sum, unit) => sum + unitWeight(unit), 0); const doneWeight = game.units.filter(unit => unit.completedAt).reduce((sum, unit) => sum + unitWeight(unit), 0);
-  const metrics = byId('gameMetrics'); metrics.replaceChildren();
-  for (const [label, value] of [['Naučené', `${totalWeight ? Math.round(doneWeight / totalWeight * 100) : 0} %`], ['Zostáva', `${remaining} min`], ['Potrebné denne', `${plan.requiredDailyMinutes} min`], ['Termín', formatPlanDate(game.deadline)]]) { const card = element('article', 'metric-card'); card.append(element('span', '', label), element('strong', '', value)); metrics.append(card); }
-  const pace = byId('gamePace'); pace.textContent = plan.impossible ? 'Nie je dostupný žiadny deň.' : plan.requiredDailyMinutes > 70 ? 'Vyššie tempo' : 'Plán je rozložený'; pace.className = plan.impossible || plan.requiredDailyMinutes > 70 ? 'error' : '';
-  const todayBox = byId('todayPlan'); todayBox.replaceChildren(); const todayUnits = plan.schedule[today] ?? [];
-  if (!todayUnits.length) todayBox.append(element('p', 'muted-copy', plan.impossible ? 'Uprav voľné dni alebo termín.' : 'Dnes nemáš naplánovaný nový úsek.'));
-  else todayUnits.forEach(unit => todayBox.append(renderGameUnit(unit, game, { date: today, unitIds: todayUnits.map(item => item.id) })));
-  const reviews = byId('todayReviews'); reviews.replaceChildren(); const reviewUnits = plan.reviews[today] ?? [];
-  if (reviewUnits.length) { reviews.append(element('h3', 'review-heading', `Opakovanie po 1, 3 alebo 7 dňoch · ${reviewUnits.length}`)); reviewUnits.forEach(unit => reviews.append(renderGameUnit(unit, game))); }
-  byId('gameDeadline').value = game.deadline; byId('gameNewMaterialEnd').value = game.newMaterialEnd;
-  const daysOff = byId('gameDaysOff'); daysOff.replaceChildren(); for (const date of game.daysOff) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { game.daysOff = game.daysOff.filter(day => day !== date); game.updatedAt = nowIso(); persist(); renderGameDetail(); }); daysOff.append(button); }
-  renderPlanCalendar(game, plan, today);
-  const schedule = byId('gameSchedule'); schedule.replaceChildren();
-  byId('gameScheduleHelp').textContent = 'Vyber deň alebo pokračuj nižšie v chronologickom zozname.';
-  if (plan.impossible) schedule.append(element('p', 'status-message error', 'V termíne nie je žiadny dostupný deň. Zruš aspoň jedno voľno alebo posuň termín.'));
-  else {
-    const upcomingDates = plan.allDates.filter(date => date > today && !game.daysOff.includes(date) && ((plan.schedule[date]?.length ?? 0) || (plan.reviews[date]?.length ?? 0)));
-    if (!upcomingDates.length) schedule.append(element('p', 'muted-copy', 'Po dnešku už nemáš naplánovaný nový text ani opakovanie.'));
-    for (const date of upcomingDates) {
-      const tasks = plan.schedule[date] ?? []; const dateReviews = plan.reviews[date] ?? [];
-      const card = element('section', `plan-day-group${date === selectedPlanDate ? ' selected-day' : ''}`); card.id = `plan-day-${date}`;
-      const heading = element('div', 'plan-day-heading');
-      heading.append(element('h3', '', formatPlanDate(date)), element('p', 'muted-copy', `${tasks.length} nových úsekov${dateReviews.length ? ` · ${dateReviews.length} na opakovanie` : ''}`)); card.append(heading);
-      tasks.forEach(unit => card.append(renderGameUnit(unit, game, { date, unitIds: tasks.map(item => item.id) })));
-      if (dateReviews.length) { card.append(element('h4', 'review-heading', 'Opakovanie')); dateReviews.forEach(unit => card.append(renderGameUnit(unit, game))); }
-      schedule.append(card);
-    }
-  }
-  const feedback = byId('planFeedback');
-  if (lastPlanAction) {
-    feedback.textContent = lastPlanAction.completed ? '✓ Dávka je označená ako hotová. Zvyšok plánu som prepočítal.' : 'Dávka je späť v pláne a termíny sa prepočítali.';
-    feedback.classList.remove('hidden', 'show'); requestAnimationFrame(() => feedback.classList.add('show'));
-    clearTimeout(planFeedbackTimer); planFeedbackTimer = setTimeout(() => { feedback.classList.remove('show'); feedback.classList.add('hidden'); }, 3600);
-    lastPlanAction = null;
-  }
-  const scenes = byId('gameScenes'); scenes.replaceChildren(); for (const scene of gameScenes(game)) { const row = element('article', 'rehearsal-card'); row.append(element('h3', '', scene.title), element('p', 'card-meta', `${scene.scene} · ${scene.parsed?.entries?.filter(entry => entry.type === 'speech' && entry.speaker === game.character).length ?? 0} replík`)); const button = element('button', 'secondary', 'Otvoriť scénu'); button.type = 'button'; button.addEventListener('click', () => openRehearsal(scene.id)); row.append(button); scenes.append(row); }
-  renderAllGameUnits(game);
-  const completedPanel = byId('completedUnitsPanel'); const completedBox = byId('completedUnits'); completedBox.replaceChildren(); const completedUnits = game.units.filter(unit => unit.completedAt).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
-  byId('completedUnitsCount').textContent = completedUnits.length ? `${completedUnits.length} hotových` : 'zatiaľ žiadne';
-  completedPanel.classList.toggle('hidden', !completedUnits.length);
-  for (const unit of completedUnits) { const row = renderGameUnit(unit, game); row.querySelector('.game-unit-meta').textContent = `${unit.section} · hotovo ${formatPlanDate(localDateKey(unit.completedAt))}`; completedBox.append(row); }
-  showGameTab(activeGameTab);
 }
 
 function scriptEntryById(game, id) {
@@ -593,7 +373,7 @@ function renderScriptSpeech(game, speech, targetIds) {
 }
 
 function renderScriptGame(keepScroll = false) {
-  const game = findGame(currentGameId); if (!game || game.mode !== 'script') return showGames();
+  const game = findGame(currentGameId); if (!game) return showGames();
   const scrollTop = keepScroll ? globalThis.scrollY : 0;
   const today = localDateKey();
   const hadTarget = Boolean(game.dailyTargets?.[today]);
@@ -611,7 +391,7 @@ function renderScriptGame(keepScroll = false) {
   byId('scriptPaceLabel').classList.toggle('error', pace.impossible);
   byId('scriptProgressBar').style.width = `${progress.percent}%`;
   const toggle = byId('toggleAllScriptLinesBtn');
-  toggle.textContent = allScriptLinesRevealed ? 'Skryť všetky moje repliky' : 'Odkryť všetky moje repliky';
+  toggle.textContent = allScriptLinesRevealed ? 'Skryť repliky' : 'Odkryť repliky';
   toggle.setAttribute('aria-pressed', String(allScriptLinesRevealed));
 
   const todayPanel = byId('scriptTodayPanel'); todayPanel.replaceChildren();
@@ -669,14 +449,12 @@ function renderScriptGame(keepScroll = false) {
   if (keepScroll) requestAnimationFrame(() => globalThis.scrollTo({ top: scrollTop, behavior: 'auto' }));
 }
 
-function openGame(id, tab) {
+function openGame(id) {
   const game = findGame(id); if (!game) return showGames();
   const changedGame = currentGameId !== id;
-  if (changedGame) { activeGameTab = tab ?? 'plan'; revealedScriptSpeechIds.clear(); allScriptLinesRevealed = false; }
-  else if (tab) activeGameTab = tab;
+  if (changedGame) { revealedScriptSpeechIds.clear(); allScriptLinesRevealed = false; }
   currentGameId = id;
-  if (game.mode === 'script') { showView('scriptGame'); renderScriptGame(); }
-  else { showView('gameDetail'); renderGameDetail(); }
+  showView('scriptGame'); renderScriptGame();
   if (changedGame) requestAnimationFrame(() => globalThis.scrollTo({ top: 0, behavior: 'auto' }));
 }
 
@@ -883,7 +661,7 @@ function closeScriptImport() {
 }
 
 function openScriptImport() {
-  const returnToGames = currentView === 'games' || currentView === 'gameDetail';
+  const returnToGames = currentView === 'games';
   showView('library');
   byId('libraryHeading').textContent = returnToGames ? 'Nová hra' : 'Scény';
   document.querySelector('.library-tabs').classList.toggle('hidden', returnToGames);
@@ -1017,7 +795,7 @@ function confirmScriptImport() {
   const ownCount = script.speeches.filter(speech => speech.speaker === character).length;
   if (!ownCount) { setLibraryMessage(`V scenári sa nenašla žiadna replika postavy ${character}.`, true); return; }
   appData.games.push(normalizeGame({
-    id: gameId, mode: 'script', title, character, importFingerprint: state.fingerprint,
+    id: gameId, title, character, importFingerprint: state.fingerprint,
     startDate: localDateKey(), deadline, daysOff: state.daysOff, focusSectionId: null,
     script, dailyTargets: {}, createdAt: timestamp, updatedAt: timestamp
   }));
@@ -1502,10 +1280,6 @@ const tracker = new VisibleActivityTracker({
 byId('brandButton').addEventListener('click', showGames);
 byId('standaloneLibraryBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
 byId('backFromLibraryBtn').addEventListener('click', showGames);
-for (const [id, tab] of [['gamePlanTab', 'plan'], ['gameScenesTab', 'scenes'], ['gameLinesTab', 'lines'], ['gameProgressTab', 'progress']]) byId(id).addEventListener('click', () => showGameTab(tab, true));
-byId('gameDetailView').querySelector('.game-tabs').addEventListener('keydown', event => {
-  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return; event.preventDefault(); const tabs = ['plan', 'scenes', 'lines', 'progress']; const direction = event.key === 'ArrowRight' ? 1 : -1; showGameTab(tabs[(tabs.indexOf(activeGameTab) + direction + tabs.length) % tabs.length], true);
-});
 byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; syncLibraryTabs(); renderLibrary(); });
 byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; syncLibraryTabs(); renderLibrary(); });
 byId('newRehearsalBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
@@ -1516,13 +1290,7 @@ byId('deleteSelectedBtn').addEventListener('click', deleteSelectedRehearsals);
 byId('sceneImportBtn').addEventListener('click', openScriptImport);
 byId('gamesImportBtn').addEventListener('click', openScriptImport);
 byId('emptyGamesImportBtn').addEventListener('click', openScriptImport);
-byId('backToGamesBtn').addEventListener('click', showGames);
 byId('backFromScriptGameBtn').addEventListener('click', showGames);
-byId('gameDeadline').addEventListener('change', () => { const game = findGame(currentGameId); if (!game || !byId('gameDeadline').value) return; game.deadline = byId('gameDeadline').value; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
-byId('gameNewMaterialEnd').addEventListener('change', () => { const game = findGame(currentGameId); const date = byId('gameNewMaterialEnd').value; if (!game || !date) return; game.newMaterialEnd = date > game.deadline ? game.deadline : date; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
-byId('addGameDayOffBtn').addEventListener('click', () => { const game = findGame(currentGameId); const date = byId('gameDayOff').value; if (!game || !date || game.daysOff.includes(date)) return; game.daysOff.push(date); game.daysOff.sort(); game.updatedAt = nowIso(); byId('gameDayOff').value = ''; persist(); renderGameDetail(); });
-byId('gameLineSearch').addEventListener('input', () => { const game = findGame(currentGameId); if (game) renderAllGameUnits(game); });
-byId('gameActFilter').addEventListener('change', () => { const game = findGame(currentGameId); if (game) renderAllGameUnits(game); });
 byId('cancelEditorBtn').addEventListener('click', closeEditor);
 byId('rehearsalForm').addEventListener('submit', saveRehearsalFromForm);
 byId('cancelSceneEditorBtn').addEventListener('click', closeSceneEditor);
@@ -1560,12 +1328,12 @@ byId('scriptSectionSelect').addEventListener('change', event => {
   event.target.value = '';
 });
 byId('scriptGameDeadline').addEventListener('change', event => {
-  const game = findGame(currentGameId); if (!game || game.mode !== 'script' || !event.target.value) return;
+  const game = findGame(currentGameId); if (!game || !event.target.value) return;
   game.deadline = event.target.value; game.updatedAt = nowIso(); persist(); renderScriptGame(true);
 });
 byId('addScriptGameDayOffBtn').addEventListener('click', () => {
   const game = findGame(currentGameId); const input = byId('scriptGameDayOff'); const date = input.value;
-  if (!game || game.mode !== 'script' || !date || game.daysOff.includes(date)) return;
+  if (!game || !date || game.daysOff.includes(date)) return;
   game.daysOff.push(date); game.daysOff.sort(); game.updatedAt = nowIso(); input.value = ''; persist(); renderScriptGame(true);
 });
 
@@ -1670,5 +1438,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=25', { updateViaCache: 'none' }).catch(() => {});
 }

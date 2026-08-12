@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -42,38 +42,21 @@
       <div class="rehearsal-list" id="gamesList"></div>
     </section>
 
-    <section class="view hidden" id="gameDetailView" aria-labelledby="gameDetailHeading">
-      <div class="training-topbar"><button class="back-button" id="backToGamesBtn" type="button">← Hry</button><div class="training-identity"><h1 id="gameDetailHeading">Hra</h1><p id="gameDetailMeta"></p></div></div>
-      <nav class="game-tabs" role="tablist" aria-label="Časti hry">
-        <button class="active" id="gamePlanTab" type="button" role="tab" aria-selected="true" aria-controls="gamePlanPanel">Denný plán</button>
-        <button id="gameScenesTab" type="button" role="tab" aria-selected="false" aria-controls="gameScenesPanel">Scény</button>
-        <button id="gameLinesTab" type="button" role="tab" aria-selected="false" aria-controls="gameLinesPanel">Repliky</button>
-        <button id="gameProgressTab" type="button" role="tab" aria-selected="false" aria-controls="gameProgressPanel">Pokrok</button>
-      </nav>
-      <div id="gamePlanPanel" role="tabpanel" aria-labelledby="gamePlanTab">
-        <section class="plan-calendar-section" aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Celý plán</p><h2 id="planDaysHeading">Kalendár</h2></div></div><p class="field-help" id="gameScheduleHelp">Vyber deň alebo pokračuj nižšie v chronologickom zozname.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div></section>
-        <section class="game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><p class="focus-method">Prečítaj partnera → povedz svoju repliku → zakry text → zopakuj spamäti.</p><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div><div id="todayReviews"></div></section>
-        <section class="upcoming-plan" aria-labelledby="upcomingDaysHeading"><div class="section-heading"><div><p class="eyebrow">Čo nasleduje</p><h2 id="upcomingDaysHeading">Ďalšie dni</h2></div></div><div class="game-day-list" id="gameSchedule"></div></section>
-        <details class="optional-fields plan-settings"><summary>Upraviť termín a voľné dni</summary><div class="optional-grid"><div><label for="gameNewMaterialEnd">Nový text dokončiť do</label><input id="gameNewMaterialEnd" type="date"><p class="field-help">Neskoršie dni zostanú na opakovanie.</p></div><div><label for="gameDeadline">Finálny termín</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></details>
-      </div>
-      <section id="gameScenesPanel" class="hidden" role="tabpanel" aria-labelledby="gameScenesTab"><div class="section-heading"><div><h2 id="gameScenesHeading">Scény</h2><p class="field-help">Otvor celú scénu a trénuj v kontexte partnerov.</p></div></div><div class="rehearsal-list" id="gameScenes"></div></section>
-      <section id="gameLinesPanel" class="hidden" role="tabpanel" aria-labelledby="gameLinesTab"><div class="section-heading"><div><h2>Repliky</h2><p class="field-help">Všetky učebné úseky v poradí scenára.</p></div></div><div class="all-lines-filters"><label for="gameLineSearch">Hľadať<input id="gameLineSearch" type="search" placeholder="Replika, partner alebo scéna"></label><label for="gameActFilter">Dejstvo<select id="gameActFilter"><option value="">Všetky</option></select></label></div><div class="game-day-list" id="gameAllUnits"></div></section>
-      <section id="gameProgressPanel" class="hidden" role="tabpanel" aria-labelledby="gameProgressTab"><div class="section-heading"><div><h2>Pokrok</h2><p class="field-help">Stav celej roly a história zvládnutých úsekov.</p></div></div><div class="metric-grid game-metrics" id="gameMetrics"></div><details class="optional-fields" id="completedUnitsPanel"><summary>Hotové úseky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details></section>
-    </section>
-
     <section class="view script-game-view hidden" id="scriptGameView" aria-labelledby="scriptGameHeading">
       <div class="training-topbar script-game-heading">
         <button class="back-button" id="backFromScriptGameBtn" type="button">← Hry</button>
         <div class="training-identity"><h1 id="scriptGameHeading">Hra</h1><p id="scriptGameMeta"></p></div>
       </div>
       <div class="script-toolbar" aria-label="Ovládanie scenára">
-        <div class="script-progress-copy"><strong id="scriptProgressLabel">0 z 0 replík</strong><span id="scriptPaceLabel"></span></div>
-        <div class="mini-progress script-progress" aria-hidden="true"><span id="scriptProgressBar"></span></div>
-        <div class="script-toolbar-actions">
-          <button class="primary" id="goToTodayTargetBtn" type="button">Prejsť na dnešný cieľ</button>
-          <button class="secondary" id="toggleAllScriptLinesBtn" type="button" aria-pressed="false">Odkryť všetky moje repliky</button>
-          <label class="script-section-jump" for="scriptSectionSelect">Prejsť na časť<select id="scriptSectionSelect"></select></label>
+        <div class="script-toolbar-main">
+          <div class="script-progress-copy"><strong id="scriptProgressLabel">0 z 0 replík</strong><span id="scriptPaceLabel"></span></div>
+          <div class="script-toolbar-actions">
+            <button class="primary" id="goToTodayTargetBtn" type="button">Dnešný cieľ</button>
+            <button class="secondary" id="toggleAllScriptLinesBtn" type="button" aria-pressed="false">Odkryť repliky</button>
+            <label class="script-section-jump" for="scriptSectionSelect"><span class="visually-hidden">Prejsť na časť</span><select id="scriptSectionSelect" aria-label="Prejsť na časť scenára"></select></label>
+          </div>
         </div>
+        <div class="mini-progress script-progress" aria-hidden="true"><span id="scriptProgressBar"></span></div>
       </div>
       <section class="script-today" id="scriptTodayPanel" aria-labelledby="scriptTodayHeading"></section>
       <details class="optional-fields script-settings">
@@ -329,6 +312,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=24"></script>
+<script type="module" src="app.js?v=25"></script>
 </body>
 </html>

@@ -4,10 +4,10 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 
 ## Funkcie
 
-- úvodná knižnica hier; každá hra má vlastný denný plán, scény, repliky a pokrok,
+- úvodná knižnica hier; každá hra sa učí priamo v celom scenári v pôvodnom poradí,
 - vedľajšia knižnica samostatných textov mimo importovaných hier,
-- učebné úseky s plnými replikami partnerov a možnosťou zakryť iba vlastný text,
-- lokálny import celého scenára z DOCX alebo vloženého textu,
+- maskovanie vlastných replík pri zachovaní partnerov a scénických poznámok,
+- lokálny import celého scenára z DOCX,
 - presné pokračovanie rozpracovanej relácie,
 - názov a voliteľne hra, postava a scéna,
 - automatické učenie viet, päťvetových úsekov a pravidelných kontrol od začiatku,
@@ -23,7 +23,7 @@ Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho 
 
 ## Navigácia
 
-Po otvorení aplikácie sa zobrazia iba hry. Detail konkrétnej hry má štyri časti: **Denný plán**, **Scény**, **Repliky** a **Pokrok**. Samostatné texty mimo hier zostávajú dostupné z úvodnej obrazovky cez tlačidlo **Samostatné texty**.
+Po otvorení aplikácie sa zobrazia hry. Otvorená hra je jeden súvislý scenár s progresom, dnešným cieľom a ovládaním masiek. Samostatné texty zostávajú dostupné z úvodnej obrazovky cez tlačidlo **Samostatné texty**.
 
 ## Scény
 
@@ -40,7 +40,7 @@ Nástroj ukáže rozpoznané postavy, vyberieš svoju a učíš sa vlastné repl
 
 ## Import celého scenára
 
-V karte **Scény** zvoľ **Importovať celý scenár** a vyber DOCX alebo vlož text. Po výbere postavy Replika navrhne súvislé výstupy, upozorní na nejasné riadky a vyberie dlhšie či štruktúrne náročnejšie repliky vhodné na samostatný tréning. Pred uložením môžeš každý návrh upraviť alebo odmietnuť. Import vždy iba pridáva do knižnice.
+Na obrazovke **Hry** zvoľ **Importovať scenár** a vyber DOCX. Po výbere postavy Replika zachová všetky odseky v pôvodnom poradí. Vlastné repliky môžeš jednotlivo alebo hromadne zakrývať a označovať ako zvládnuté.
 
 ## Najjednoduchšie spustenie vo Windows
 
@@ -71,7 +71,7 @@ npm test
 ## Štruktúra
 
 - `src/app.js` – obrazovky hier, denného plánu, knižnice a tréningu,
-- `src/game-dialogue.js` – doplnenie partnerových replík do nových aj starších učebných úsekov,
+- `src/script-game.js` – celý scenár, progres a dnešný cieľ,
 - `src/learning-engine.js` – čistý deterministický automat,
 - `src/parser.js` – delenie textu na vety a bloky,
 - `src/storage.js` – verzované dáta, migrácia a backup,

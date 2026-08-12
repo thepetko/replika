@@ -1,6 +1,5 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
-export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -9,10 +8,6 @@ function clone(value) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function shiftDate(date, days) {
-  const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() + days); return value.toISOString().slice(0, 10);
 }
 
 function validateSession(session) {
@@ -105,10 +100,11 @@ export function createEmptyAppData() {
 
 export function validateAppData(value) {
   if (!isPlainObject(value)) throw new Error('Uložené dáta nemajú platný formát.');
+  value = clone(value);
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, 6, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, 7, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -116,6 +112,11 @@ export function validateAppData(value) {
   if (!isPlainObject(value.activity) || !isPlainObject(value.activity.days)) {
     throw new Error('Časové štatistiky nie sú platné.');
   }
+  value.games ??= [];
+  if (value.schemaVersion < 8) {
+    value.games = value.games.filter(game => game?.mode === 'script' || isPlainObject(game?.script));
+  }
+  for (const game of value.games) delete game.mode;
 
   for (const rehearsal of value.rehearsals) {
     if (!isPlainObject(rehearsal) || typeof rehearsal.id !== 'string' || !rehearsal.id) {
@@ -149,15 +150,7 @@ export function validateAppData(value) {
   for (const game of value.games ?? []) {
     if (!isPlainObject(game) || typeof game.id !== 'string' || typeof game.title !== 'string' || typeof game.character !== 'string' || typeof game.deadline !== 'string' || !Array.isArray(game.daysOff)) throw new Error('Backup obsahuje neplatnú hru.');
     if (!game.daysOff.every(day => typeof day === 'string')) throw new Error('Backup obsahuje neplatný plán hry.');
-    const mode = game.mode ?? 'legacy';
-    if (!['legacy', 'script'].includes(mode)) throw new Error('Backup obsahuje neplatný režim hry.');
-    if (mode === 'script') {
-      validateScriptGame(game);
-      continue;
-    }
-    if (!Array.isArray(game.units) || !game.units.every(unit => isPlainObject(unit) && typeof unit.id === 'string' && typeof unit.text === 'string' && Number.isFinite(Number(unit.minutes)))) throw new Error('Backup obsahuje neplatný plán hry.');
-    if (game.newMaterialEnd !== undefined && typeof game.newMaterialEnd !== 'string') throw new Error('Backup obsahuje neplatný termín nového textu.');
-    if (game.lockedPlans !== undefined && (!isPlainObject(game.lockedPlans) || !Object.values(game.lockedPlans).every(ids => Array.isArray(ids) && ids.every(id => typeof id === 'string')))) throw new Error('Backup obsahuje neplatný uzamknutý plán.');
+    validateScriptGame(game);
   }
 
   for (const day of Object.values(value.activity.days)) {
@@ -169,22 +162,15 @@ export function validateAppData(value) {
     }
   }
 
-  const normalized = clone(value);
+  const normalized = value;
   normalized.schemaVersion = SCHEMA_VERSION;
   normalized.games ??= [];
   for (const game of normalized.games) {
-    game.mode ??= 'legacy';
     game.startDate ??= game.createdAt?.slice(0, 10) || game.deadline;
-    if (game.mode === 'script') {
-      game.daysOff ??= [];
-      game.dailyTargets ??= {};
-      game.focusSectionId ??= null;
-      for (const speech of game.script.speeches) speech.learnedAt ??= null;
-      continue;
-    }
-    game.newMaterialEnd ??= shiftDate(game.deadline, -3);
-    game.lockedPlans ??= {};
-    for (const unit of game.units) unit.weak = Boolean(unit.weak);
+    game.daysOff ??= [];
+    game.dailyTargets ??= {};
+    game.focusSectionId ??= null;
+    for (const speech of game.script.speeches) speech.learnedAt ??= null;
   }
   return normalized;
 }
@@ -199,7 +185,11 @@ export function loadAppData(storage = globalThis.localStorage) {
   } catch {
     throw new Error('Uložené dáta sa nedajú prečítať. Exportuj ich pred ďalšími zmenami.');
   }
-  return validateAppData(parsed);
+  const normalized = validateAppData(parsed);
+  if (JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+    storage?.setItem(APP_STORAGE_KEY, JSON.stringify(normalized));
+  }
+  return normalized;
 }
 
 export function saveAppData(data, storage = globalThis.localStorage, now = new Date().toISOString()) {
@@ -210,41 +200,7 @@ export function saveAppData(data, storage = globalThis.localStorage, now = new D
 
 export function clearAppData(storage = globalThis.localStorage) {
   storage?.removeItem(APP_STORAGE_KEY);
-  storage?.removeItem(LEGACY_TEXT_KEY);
-}
-
-export function getLegacyText(storage = globalThis.localStorage) {
-  return storage?.getItem(LEGACY_TEXT_KEY)?.trim() ?? '';
-}
-
-export function migrateLegacyData(data, storage = globalThis.localStorage, options = {}) {
-  const text = getLegacyText(storage);
-  if (!text) return clone(data);
-
-  const now = options.now ?? new Date().toISOString();
-  const next = clone(data);
-  next.rehearsals.push({
-    id: options.id ?? globalThis.crypto?.randomUUID?.() ?? `legacy-${Date.now()}`,
-    title: options.title ?? 'Importovaná replika',
-    play: '',
-    character: '',
-    scene: '',
-    text,
-    parserVersion: null,
-    parsed: null,
-    session: null,
-    status: 'draft',
-    reviewDueAt: null,
-    reviewCompletedAt: null,
-    createdAt: now,
-    updatedAt: now,
-    lastOpenedAt: null,
-    stats: { activeSeconds: 0, completedRuns: 0, assistedAttempts: 0 }
-  });
-
-  const saved = saveAppData(next, storage, now);
-  storage?.removeItem(LEGACY_TEXT_KEY);
-  return saved;
+  storage?.removeItem('replikaText');
 }
 
 export function createBackup(data, now = new Date().toISOString()) {
@@ -272,7 +228,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, 6, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, 7, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 
@@ -298,19 +254,4 @@ export function removeGameData(data, gameId) {
     for (const id of sceneIds) delete day.byRehearsal?.[id];
   }
   return next;
-}
-
-// Dočasná kompatibilita pre staršie integrácie.
-export function loadText(storage = globalThis.localStorage) {
-  return getLegacyText(storage);
-}
-
-export function saveText(text, storage = globalThis.localStorage) {
-  storage?.setItem(LEGACY_TEXT_KEY, text);
-  return true;
-}
-
-export function clearText(storage = globalThis.localStorage) {
-  storage?.removeItem(LEGACY_TEXT_KEY);
-  return true;
 }
