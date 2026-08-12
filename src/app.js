@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=26';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=27';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=26';
-import { parseText, PARSER_VERSION } from './parser.js?v=26';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=26';
-import { fingerprintScript } from './script-importer.js?v=26';
-import { readDocxParagraphs } from './docx-reader.js?v=26';
+} from './learning-engine.js?v=27';
+import { parseText, PARSER_VERSION } from './parser.js?v=27';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=27';
+import { fingerprintScript } from './script-importer.js?v=27';
+import { readDocxParagraphs } from './docx-reader.js?v=27';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=26';
+} from './scene-learning-engine.js?v=27';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,9 +27,9 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=26';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=26';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=26';
+} from './storage.js?v=27';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=27';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=27';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -39,8 +39,9 @@ import {
   scriptOwnSpeeches,
   scriptProgress,
   setScriptFocus,
-  setScriptSpeechLearnedById
-} from './script-game.js?v=26';
+  setScriptSpeechLearnedById,
+  setScriptSpeechNoteById
+} from './script-game.js?v=27';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -350,6 +351,57 @@ function renderScriptSpeech(game, speech, targetIds) {
   }
   row.append(textWrap);
   if (own) {
+    const note = element('div', 'script-speech-note');
+    const renderNoteEditor = () => {
+      note.replaceChildren();
+      const label = element('label', 'script-note-label', 'Poznámka k akcii');
+      const field = document.createElement('textarea');
+      field.id = `script-note-${speech.id}`;
+      field.className = 'script-note-input';
+      field.rows = 2;
+      field.maxLength = 2000;
+      field.placeholder = 'Akcia, emócia, pohyb…';
+      field.value = findGame(game.id)?.script.speeches.find(item => item.id === speech.id)?.note ?? '';
+      label.htmlFor = field.id;
+      const status = element('span', 'script-note-status');
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      let saveTimer = null;
+      const saveNote = () => {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = null;
+        const currentSpeech = findGame(game.id)?.script.speeches.find(item => item.id === speech.id);
+        const previous = currentSpeech?.note ?? '';
+        const next = field.value.trim();
+        if (next === previous) { status.textContent = next ? 'Uložené' : ''; return; }
+        if (!setScriptSpeechNoteById(appData.games, game.id, speech.id, next) || !persist()) {
+          setScriptSpeechNoteById(appData.games, game.id, speech.id, previous);
+          field.value = previous;
+          status.textContent = 'Nepodarilo sa uložiť';
+          status.classList.add('error');
+          return;
+        }
+        status.classList.remove('error');
+        status.textContent = 'Uložené';
+      };
+      field.addEventListener('input', () => {
+        status.classList.remove('error');
+        status.textContent = 'Ukladám…';
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveNote, 450);
+      });
+      field.addEventListener('blur', saveNote);
+      note.append(label, field, status);
+    };
+    if (speech.note) renderNoteEditor();
+    else {
+      const addNote = element('button', 'text-button script-add-note', '+ Pridať poznámku');
+      addNote.type = 'button';
+      addNote.setAttribute('aria-label', `Pridať poznámku k replike v časti ${scriptSectionTitle(game, speech.sectionId)}`);
+      addNote.addEventListener('click', () => { renderNoteEditor(); note.querySelector('textarea')?.focus(); });
+      note.append(addNote);
+    }
+    row.append(note);
     const controls = element('div', 'script-speech-controls');
     if (revealed) {
       const hide = element('button', 'text-button', 'Skryť repliku'); hide.type = 'button';
@@ -1444,5 +1496,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=26', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=27', { updateViaCache: 'none' }).catch(() => {});
 }

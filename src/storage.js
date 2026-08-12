@@ -1,5 +1,5 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -71,6 +71,7 @@ function validateScriptGame(game) {
       || typeof speech.speaker !== 'string' || !sectionIds.has(speech.sectionId)
       || !Array.isArray(speech.entryIds) || !speech.entryIds.every(id => entryIds.has(id))
       || typeof speech.text !== 'string'
+      || (speech.note !== undefined && typeof speech.note !== 'string')
       || (speech.learnedAt !== null && speech.learnedAt !== undefined && typeof speech.learnedAt !== 'string')) {
       throw new Error('Backup obsahuje neplatnú repliku scenára.');
     }
@@ -104,7 +105,7 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, 6, 7, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, 7, 8, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -170,7 +171,10 @@ export function validateAppData(value) {
     game.daysOff ??= [];
     game.dailyTargets ??= {};
     game.focusSectionId ??= null;
-    for (const speech of game.script.speeches) speech.learnedAt ??= null;
+    for (const speech of game.script.speeches) {
+      speech.learnedAt ??= null;
+      speech.note ??= '';
+    }
   }
   return normalized;
 }
@@ -228,7 +232,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, 5, 6, 7, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, 4, 5, 6, 7, 8, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

@@ -157,10 +157,22 @@ test('migrácia schémy 2 zachová existujúcu repliku a prijme scénu', () => {
 
 test('backup zachová celý scenár a voľné dni', () => {
   const data = createEmptyAppData();
-  const game = scriptGame('game-1'); game.daysOff = ['2026-08-15']; data.games.push(game);
+  const game = scriptGame('game-1'); game.daysOff = ['2026-08-15']; game.script.speeches[0].note = 'Prejsť k oknu.'; data.games.push(game);
   const restored = validateBackup(createBackup(data));
   assert.equal(restored.data.games[0].daysOff[0], '2026-08-15');
   assert.equal(restored.data.games[0].script.speeches[0].text, 'Text.');
+  assert.equal(restored.data.games[0].script.speeches[0].note, 'Prejsť k oknu.');
+});
+
+test('migrácia schémy 8 doplní k replikám prázdnu poznámku', () => {
+  const old = createEmptyAppData();
+  old.schemaVersion = 8;
+  old.games.push(scriptGame('game-without-notes'));
+
+  const migrated = validateAppData(old);
+
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION);
+  assert.equal(migrated.games[0].script.speeches[0].note, '');
 });
 
 test('migrácia ponechá iba hry s celým scenárom a odstráni technické označenie režimu', () => {

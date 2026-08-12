@@ -9,7 +9,8 @@ import {
   scriptProgress,
   setScriptFocus,
   setScriptSpeechLearned,
-  setScriptSpeechLearnedById
+  setScriptSpeechLearnedById,
+  setScriptSpeechNoteById
 } from '../src/script-game.js';
 
 const paragraphs = [
@@ -134,4 +135,16 @@ test('označenie podľa ID zapisuje do aktuálnej kópie dát aj po automatickom
   assert.equal(changed, true);
   assert.equal(currentGames[0].script.speeches.find(speech => speech.id === speechId).learnedAt, '2026-08-12T09:00:00.000Z');
   assert.equal(staleGame.script.speeches.find(speech => speech.id === speechId).learnedAt, null);
+});
+
+test('poznámka podľa ID sa uloží iba k vlastnej replike v aktuálnej kópii dát', () => {
+  const staleGame = makeGame();
+  const currentGames = structuredClone([staleGame]);
+  const ownSpeech = staleGame.script.speeches.find(speech => speech.speaker === 'TULÁK');
+  const partnerSpeech = staleGame.script.speeches.find(speech => speech.speaker === 'CHROBÁK');
+
+  assert.equal(setScriptSpeechNoteById(currentGames, staleGame.id, ownSpeech.id, '  Vstať a prejsť doprava.  '), true);
+  assert.equal(setScriptSpeechNoteById(currentGames, staleGame.id, partnerSpeech.id, 'Nemá sa uložiť.'), false);
+  assert.equal(currentGames[0].script.speeches.find(speech => speech.id === ownSpeech.id).note, 'Vstať a prejsť doprava.');
+  assert.equal(staleGame.script.speeches.find(speech => speech.id === ownSpeech.id).note, '');
 });

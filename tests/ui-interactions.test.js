@@ -92,6 +92,16 @@ test('checkbox scenára má samostatný change handler a karta ho neprepína', (
   assert.doesNotMatch(source, /row\.addEventListener\('click'.*setScriptSpeechLearned/su);
 });
 
+test('vlastná replika ponúka trvalo viditeľnú automaticky ukladanú poznámku mimo masky', () => {
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  const renderSpeech = source.slice(source.indexOf('function renderScriptSpeech'), source.indexOf('function renderScriptGame'));
+
+  assert.match(renderSpeech, /Pridať poznámku/u);
+  assert.match(renderSpeech, /script-speech-note/u);
+  assert.match(renderSpeech, /setScriptSpeechNoteById\(appData\.games, game\.id, speech\.id/u);
+  assert.ok(renderSpeech.indexOf("row.append(textWrap)") < renderSpeech.indexOf('script-speech-note'));
+});
+
 test('HTML a modulový graf používajú rovnakú verziu vydania ako offline cache', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
