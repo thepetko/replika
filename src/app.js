@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=23';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js';
-import { parseText, PARSER_VERSION } from './parser.js';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js';
-import { fingerprintScript } from './script-importer.js';
-import { readDocxParagraphs } from './docx-reader.js';
+} from './learning-engine.js?v=23';
+import { parseText, PARSER_VERSION } from './parser.js?v=23';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=23';
+import { fingerprintScript } from './script-importer.js?v=23';
+import { readDocxParagraphs } from './docx-reader.js?v=23';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js';
+} from './scene-learning-engine.js?v=23';
 import {
   createBackup,
   createEmptyAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
-import { addPlanDays, buildSchedule, estimateMinutes, localDateKey, unitWeight } from './game-plan.js';
-import { enrichStudyUnitPrompts, setStudyUnitCompletion } from './game-dialogue.js';
+} from './storage.js?v=23';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=23';
+import { addPlanDays, buildSchedule, estimateMinutes, localDateKey, unitWeight } from './game-plan.js?v=23';
+import { enrichStudyUnitPrompts, setStudyUnitCompletion } from './game-dialogue.js?v=23';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -41,7 +41,7 @@ import {
   scriptProgress,
   setScriptFocus,
   setScriptSpeechLearned
-} from './script-game.js';
+} from './script-game.js?v=23';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -909,7 +909,7 @@ function collectUnknownResolutions() {
     }));
 }
 
-function renderScriptImportPreview() {
+function renderScriptImportPreviewContent() {
   const preview = byId('scriptImportPreview');
   const character = byId('scriptImportCharacter').value;
   const issues = byId('scriptImportIssues');
@@ -958,6 +958,29 @@ function renderScriptImportPreview() {
     }
   }
   byId('confirmScriptImportBtn').disabled = ownLines === 0;
+}
+
+function renderScriptImportPreview() {
+  const preview = byId('scriptImportPreview');
+  const confirmButton = byId('confirmScriptImportBtn');
+  preview.classList.remove('import-preview-error');
+  preview.setAttribute('aria-busy', 'true');
+  confirmButton.disabled = true;
+  byId('gameImportOptions').classList.add('hidden');
+  try {
+    renderScriptImportPreviewContent();
+  } catch (error) {
+    byId('scriptImportIssues').replaceChildren();
+    preview.replaceChildren(
+      element('strong', '', 'Náhľad sa nepodarilo pripraviť.'),
+      element('p', 'muted-copy', 'Obnov stránku a vyber DOCX znova. Ak problém zostane, exportuj zálohu pred ďalším pokusom.')
+    );
+    preview.classList.add('import-preview-error');
+    setLibraryMessage(`Import sa zastavil: ${error.message}`, true);
+    console.error('Script import preview failed', error);
+  } finally {
+    preview.setAttribute('aria-busy', 'false');
+  }
 }
 
 function renderImportDaysOff() {
@@ -1650,5 +1673,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' }).catch(() => {});
 }

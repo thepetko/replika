@@ -84,3 +84,18 @@ test('checkbox scenára má samostatný change handler a karta ho neprepína', (
   assert.match(source, /checkbox\.addEventListener\('change'/u);
   assert.doesNotMatch(source, /row\.addEventListener\('click'.*setScriptSpeechLearned/su);
 });
+
+test('HTML a modulový graf používajú rovnakú verziu vydania ako offline cache', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+  const scriptGame = readFileSync(new URL('../src/script-game.js', import.meta.url), 'utf8');
+  const worker = readFileSync(new URL('../src/sw.js', import.meta.url), 'utf8');
+  const release = worker.match(/const RELEASE = '(\d+)'/u)?.[1];
+
+  assert.ok(release, 'Service worker musí deklarovať verziu vydania.');
+  assert.match(html, new RegExp(`styles\\.css\\?v=${release}`));
+  assert.match(html, new RegExp(`app\\.js\\?v=${release}`));
+  assert.doesNotMatch(app, /from '\.\/[^']+\.js';/u);
+  assert.doesNotMatch(scriptGame, /from '\.\/[^']+\.js';/u);
+  assert.match(app, /updateViaCache:\s*'none'/u);
+});

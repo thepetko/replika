@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js';
+import { availableDates, estimateMinutes } from './game-plan.js?v=23';
 
 const SPEAKER_LINE = /^\s*([\p{Lu}\d][\p{Lu}\p{M}\d .,'’\-–—/]{0,50}?)(?:\s*(\([^)]{0,200}\)))?\s*:\s*(.*)$/u;
 const STRUCTURE_HEADING = /^(?:(?:prvé|prvý|druhé|druhý|tretie|tretí|štvrté|štvrtý|piate|piaty|šieste|šiesty|siedme|siedmy|ôsme|ôsmy|deviate|deviaty|desiate|desiaty|\d+\.?|[IVXLCDM]+\.?)\s+)?(?:dejstvo|obraz)(?:\s*[:.\-–—].*)?$|^(?:sc[eé]na|výstup)\s+(?:\d+|[IVXLCDM]+)(?:\s*[:.\-–—].*)?$|^epil[oó]g\s*:?$/iu;

@@ -702,6 +702,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .optional-fields > summary { font-size: .9rem; }
 .field-help, .muted-copy { color: var(--muted); }
 .scene-preview { border: 0; border-radius: var(--radius-small); background: var(--paper); }
+.scene-preview.import-preview-error { background: #f4e9e6; color: var(--danger); }
+.scene-preview.import-preview-error .muted-copy { color: #6f3b35; }
 .import-choice { border-color: var(--line); border-radius: var(--radius-small); background: var(--surface); }
 
 .rehearsal-list { gap: 1rem; }

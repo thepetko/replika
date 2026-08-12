@@ -1,25 +1,26 @@
-const CACHE_NAME = 'replika-shell-v22';
+const RELEASE = '23';
+const CACHE_NAME = `replika-shell-v${RELEASE}`;
+const versioned = path => `${path}?v=${RELEASE}`;
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css',
+  versioned('./styles.css'),
   './favicon.svg',
   './replika-logo.png',
   './replika-mark.png',
-  './app.js',
-  './parser.js',
-  './learning-engine.js',
-  './scene-parser.js',
-  './script-importer.js',
-  './docx-reader.js',
-  './scene-learning-engine.js',
-  './storage.js',
-  './activity-tracker.js',
-  './ui-interactions.js',
-  './game-plan.js',
-  './game-segments.js',
-  './game-dialogue.js',
-  './script-game.js'
+  versioned('./app.js'),
+  versioned('./parser.js'),
+  versioned('./learning-engine.js'),
+  versioned('./scene-parser.js'),
+  versioned('./script-importer.js'),
+  versioned('./docx-reader.js'),
+  versioned('./scene-learning-engine.js'),
+  versioned('./storage.js'),
+  versioned('./activity-tracker.js'),
+  versioned('./ui-interactions.js'),
+  versioned('./game-plan.js'),
+  versioned('./game-dialogue.js'),
+  versioned('./script-game.js')
 ];
 
 self.addEventListener('install', event => {
@@ -37,7 +38,7 @@ self.addEventListener('activate', event => {
 
 async function networkFirst(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     const cache = await caches.open(CACHE_NAME);
     cache.put(request, response.clone());
     return response;
