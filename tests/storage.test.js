@@ -11,6 +11,7 @@ import {
   migrateLegacyData,
   replaceFromBackup,
   saveAppData,
+  validateAppData,
   validateBackup
 } from '../src/storage.js';
 
@@ -147,10 +148,19 @@ test('migrácia schémy 2 zachová existujúcu repliku a prijme scénu', () => {
 test('backup zachová hru s plánom a voľnými dňami', () => {
   const data = createEmptyAppData();
   data.games.push({
-    id: 'game-1', title: 'Hra', character: 'ANNA', deadline: '2026-08-27', daysOff: ['2026-08-15'],
-    units: [{ id: 'unit-1', sceneTitle: 'I. dejstvo', section: 'I. dejstvo', text: 'Text.', minutes: 8, completedAt: null }]
+    id: 'game-1', title: 'Hra', character: 'ANNA', startDate: '2026-08-10', newMaterialEnd: '2026-08-24', deadline: '2026-08-27', daysOff: ['2026-08-15'], lockedPlans: { '2026-08-10': ['unit-1'] },
+    units: [{ id: 'unit-1', sceneTitle: 'I. dejstvo', section: 'I. dejstvo', text: 'Text.', minutes: 8, completedAt: null, weak: true }]
   });
   const restored = validateBackup(createBackup(data));
   assert.equal(restored.data.games[0].daysOff[0], '2026-08-15');
   assert.equal(restored.data.games[0].units[0].minutes, 8);
+  assert.deepEqual(restored.data.games[0].lockedPlans['2026-08-10'], ['unit-1']);
+  assert.equal(restored.data.games[0].units[0].weak, true);
+});
+
+test('schéma 5 bezpečne doplní konfiguráciu dynamického plánu', () => {
+  const old = createEmptyAppData(); old.schemaVersion = 5;
+  old.games.push({ id: 'g', title: 'Stará hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
+  const migrated = validateAppData(old);
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION); assert.equal(migrated.games[0].newMaterialEnd, '2026-08-24'); assert.deepEqual(migrated.games[0].lockedPlans, {});
 });

@@ -44,10 +44,11 @@
     <section class="view hidden" id="gameDetailView" aria-labelledby="gameDetailHeading">
       <div class="training-topbar"><button class="back-button" id="backToGamesBtn" type="button">← Hry</button><div class="training-identity"><h1 id="gameDetailHeading">Hra</h1><p id="gameDetailMeta"></p></div></div>
       <div class="metric-grid game-metrics" id="gameMetrics"></div>
-      <section class="editor-panel game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div></section>
-      <section class="editor-panel" aria-labelledby="gameSettingsHeading"><div class="section-heading"><h2 id="gameSettingsHeading">Termín a voľno</h2></div><div class="optional-grid"><div><label for="gameDeadline">Termín naučenia</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></section>
+      <section class="editor-panel game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný focus</h2></div><strong id="gamePace"></strong></div><p class="focus-method">Cue nahlas → 3× s textom → zakryť → 3 čisté pokusy.</p><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div><div id="todayReviews"></div></section>
+      <section class="editor-panel" aria-labelledby="gameSettingsHeading"><div class="section-heading"><h2 id="gameSettingsHeading">Termín a voľno</h2></div><div class="optional-grid"><div><label for="gameNewMaterialEnd">Nový text dokončiť do</label><input id="gameNewMaterialEnd" type="date"><p class="field-help">Neskoršie dni zostanú na opakovanie.</p></div><div><label for="gameDeadline">Finálny termín</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></section>
       <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Automaticky prepočítané</p><h2 id="planDaysHeading">Plán v kalendári</h2></div></div><p class="field-help" id="gameScheduleHelp">Klikni na deň a uvidíš jeho dávky. Značka ukazuje počet úsekov a odhad času.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div><div class="game-day-list" id="gameSchedule"></div></section>
       <section aria-labelledby="gameScenesHeading"><div class="section-heading"><h2 id="gameScenesHeading">Scény a obrazy</h2></div><div class="rehearsal-list" id="gameScenes"></div></section>
+      <details class="optional-fields all-lines-panel"><summary>Všetky učebné úseky</summary><div class="all-lines-filters"><label for="gameLineSearch">Hľadať<input id="gameLineSearch" type="search" placeholder="Replika, cue alebo scéna"></label><label for="gameActFilter">Dejstvo<select id="gameActFilter"><option value="">Všetky</option></select></label></div><div class="game-day-list" id="gameAllUnits"></div></details>
       <details class="optional-fields" id="completedUnitsPanel"><summary>Hotové dávky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details>
     </section>
 
@@ -173,6 +174,8 @@
             <input id="scriptImportGameTitle" maxlength="120">
             <label for="scriptImportDeadline">Dokedy sa chcem naučiť text</label>
             <input id="scriptImportDeadline" type="date">
+            <label for="scriptImportNewMaterialEnd">Nový text dokončiť do</label>
+            <input id="scriptImportNewMaterialEnd" type="date">
             <label for="scriptImportDayOff">Voľný deň <span class="field-help">voliteľné</span></label>
             <div class="compact-actions"><input id="scriptImportDayOff" type="date"><button id="addImportDayOffBtn" type="button">Pridať voľno</button></div>
             <div class="day-off-list" id="importDaysOff"></div>

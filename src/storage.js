@@ -1,6 +1,6 @@
 export const APP_STORAGE_KEY = 'replikaAppData';
 export const LEGACY_TEXT_KEY = 'replikaText';
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 export const BACKUP_TYPE = 'replika-full-backup';
 
 function clone(value) {
@@ -9,6 +9,10 @@ function clone(value) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function shiftDate(date, days) {
+  const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() + days); return value.toISOString().slice(0, 10);
 }
 
 function validateSession(session) {
@@ -55,7 +59,7 @@ export function validateAppData(value) {
   if (value.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Uložené dáta používajú novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, SCHEMA_VERSION].includes(value.schemaVersion)) {
+  if (![2, 3, 4, 5, SCHEMA_VERSION].includes(value.schemaVersion)) {
     throw new Error('Uložené dáta používajú nepodporovanú verziu.');
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
@@ -96,6 +100,8 @@ export function validateAppData(value) {
   for (const game of value.games ?? []) {
     if (!isPlainObject(game) || typeof game.id !== 'string' || typeof game.title !== 'string' || typeof game.character !== 'string' || typeof game.deadline !== 'string' || !Array.isArray(game.daysOff) || !Array.isArray(game.units)) throw new Error('Backup obsahuje neplatnú hru.');
     if (!game.daysOff.every(day => typeof day === 'string') || !game.units.every(unit => isPlainObject(unit) && typeof unit.id === 'string' && typeof unit.text === 'string' && Number.isFinite(Number(unit.minutes)))) throw new Error('Backup obsahuje neplatný plán hry.');
+    if (game.newMaterialEnd !== undefined && typeof game.newMaterialEnd !== 'string') throw new Error('Backup obsahuje neplatný termín nového textu.');
+    if (game.lockedPlans !== undefined && (!isPlainObject(game.lockedPlans) || !Object.values(game.lockedPlans).every(ids => Array.isArray(ids) && ids.every(id => typeof id === 'string')))) throw new Error('Backup obsahuje neplatný uzamknutý plán.');
   }
 
   for (const day of Object.values(value.activity.days)) {
@@ -110,6 +116,12 @@ export function validateAppData(value) {
   const normalized = clone(value);
   normalized.schemaVersion = SCHEMA_VERSION;
   normalized.games ??= [];
+  for (const game of normalized.games) {
+    game.startDate ??= game.createdAt?.slice(0, 10) || game.deadline;
+    game.newMaterialEnd ??= shiftDate(game.deadline, -3);
+    game.lockedPlans ??= {};
+    for (const unit of game.units) unit.weak = Boolean(unit.weak);
+  }
   return normalized;
 }
 
@@ -191,7 +203,7 @@ export function validateBackup(input) {
   if (backup.schemaVersion > SCHEMA_VERSION) {
     throw new Error('Backup používa novšiu verziu aplikácie.');
   }
-  if (![2, 3, 4, SCHEMA_VERSION].includes(backup.schemaVersion)) {
+  if (![2, 3, 4, 5, SCHEMA_VERSION].includes(backup.schemaVersion)) {
     throw new Error('Verzia backupu nie je podporovaná.');
   }
 

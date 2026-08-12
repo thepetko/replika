@@ -439,6 +439,8 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .calendar-day.selected { border-color: var(--ink); background: var(--ink); color: #fff; box-shadow: 0 .35rem .85rem rgb(27 26 23 / 16%); }
 .calendar-day.off { color: var(--muted); background: #efeee9; }
 .calendar-day.off.selected { color: #fff; }
+.calendar-day.moved { border-color: #ba3f2b; color: #9a321f; }
+.calendar-day.moved.selected { color: #fff; }
 .calendar-load, .calendar-off { overflow: hidden; font-size: .68rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-off { font-weight: 700; }
 .plan-feedback { position: fixed; z-index: 20; right: 1rem; bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 5rem)); left: 1rem; max-width: 34rem; margin: 0 auto; padding: .9rem 1rem; border: 1px solid #166534; border-radius: .85rem; background: #e9f7ec; color: #14532d; font-weight: 800; box-shadow: 0 .8rem 1.6rem rgb(20 83 45 / 18%); opacity: 0; transform: translateY(.8rem) scale(.97); }
@@ -461,6 +463,43 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .day-off-list { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; }
 .day-off-list button { min-height: 2.2rem; padding: .35rem .6rem; font-size: .8rem; }
 #gameDayOff, #scriptImportDayOff { min-width: 10rem; flex: 1; }
+
+.focus-method { margin: -.35rem 0 1rem; color: var(--muted); font-weight: 700; }
+.study-line-card { display: block; margin: .75rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius-medium); background: var(--surface); box-shadow: 0 .25rem .8rem rgb(27 26 23 / 6%); }
+.study-line-card:first-child { border-top: 1px solid var(--line); }
+.study-line-card.done { opacity: .68; text-decoration: none; }
+.study-line-card.weak { border-color: #ba3f2b; }
+.study-line-top, .study-line-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.line-number { margin-right: .5rem; font-family: Georgia, serif; font-size: 1.05rem; }
+.difficulty { display: inline-block; padding: .18rem .45rem; border-radius: 999px; background: var(--surface-soft); color: var(--muted); font-size: .7rem; font-weight: 800; }
+.weak-button { min-height: 2.75rem; border-color: transparent; background: transparent; color: var(--muted); }
+.weak-button.active { color: #9a321f; background: #f3d8cf; }
+.study-prompts { display: grid; gap: .8rem; margin: .85rem 0; }
+.study-prompt { display: grid; gap: .55rem; }
+.cue-box { padding: .75rem; border-left: .25rem solid #a7a298; border-radius: .5rem; background: #ebe6da; }
+.cue-box strong { color: var(--muted); font-size: .72rem; letter-spacing: .08em; }
+.cue-box p, .study-line-card .cue-box p { margin: .2rem 0 0; color: var(--ink); font-size: .92rem; }
+.own-line, .study-line-card .own-line { margin: 0; padding: .3rem .75rem; color: var(--ink); font-family: Georgia, serif; font-size: 1rem; line-height: 1.55; white-space: pre-line; }
+.hidden-line { min-height: 4rem; padding: 1rem; border: 1px dashed var(--line); border-radius: .6rem; color: var(--muted); text-align: center; }
+.done-control { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .55rem; padding: .35rem .65rem; border-radius: .6rem; background: #e9f7ec; color: #14532d; font-weight: 800; }
+.done-control input { width: 1.35rem; min-height: 1.35rem; margin: 0; }
+.review-heading { margin: 1.25rem 0 .6rem; color: #274f43; }
+.all-lines-panel { margin-top: 1.5rem; }
+.all-lines-filters { display: grid; grid-template-columns: 2fr 1fr; gap: .75rem; margin: 1rem 0; }
+
+@media (min-width: 721px) and (max-width: 1000px) {
+  .calendar-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .calendar-blank, .calendar-weekdays { display: none; }
+}
+
+@media (max-width: 720px) {
+  .calendar-weekdays, .calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calendar-blank, .calendar-weekdays { display: none; }
+  .calendar-day { min-height: 5rem; }
+  .study-line-top, .study-line-actions { align-items: stretch; flex-direction: column; }
+  .weak-button, .study-line-actions button, .done-control { width: 100%; justify-content: center; }
+  .all-lines-filters { grid-template-columns: 1fr; }
+}
 
 .nav-item { min-width: 0; min-height: 3.5rem; padding-inline: .3rem; display: flex; align-items: center; justify-content: center; gap: .35rem; border-color: transparent; background: transparent; font-size: .85rem; white-space: nowrap; }
 .nav-item.active { border-color: var(--ink); background: var(--ink); color: #fff; }

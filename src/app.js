@@ -34,7 +34,7 @@ import {
   validateBackup
 } from './storage.js';
 import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
-import { buildSchedule, localDateKey } from './game-plan.js';
+import { addPlanDays, buildSchedule, localDateKey, unitWeight } from './game-plan.js';
 import { createStudyUnits, mergeUnitWithNext, splitUnit } from './game-segments.js';
 
 const byId = id => document.getElementById(id);
@@ -54,6 +54,7 @@ let currentGameId = null;
 let selectedPlanDate = null;
 let lastPlanAction = null;
 let planFeedbackTimer = null;
+const hiddenGameUnits = new Set();
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
@@ -99,7 +100,9 @@ function normalizeRehearsal(rehearsal) {
 }
 
 function normalizeGame(game) {
-  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', deadline: game.deadline ?? localDateKey(), daysOff: [...new Set(game.daysOff ?? [])].sort(), units: (game.units ?? []).map((unit, index) => ({ ...unit, order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index, completedAt: unit.completedAt ?? null })), createdAt: game.createdAt ?? nowIso(), updatedAt: game.updatedAt ?? nowIso() };
+  const deadline = game.deadline ?? localDateKey();
+  const createdAt = game.createdAt ?? nowIso();
+  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt), deadline, newMaterialEnd: game.newMaterialEnd ?? addPlanDays(deadline, -3), daysOff: [...new Set(game.daysOff ?? [])].sort(), lockedPlans: game.lockedPlans ?? {}, units: (game.units ?? []).map((unit, index) => { const prompts = unit.prompts?.length ? unit.prompts : [{ cueSpeaker: unit.cueSpeaker || 'VSTUP', cue: unit.cue || 'Vlastný nástup.', cueFull: unit.cueFull || '', text: unit.text }]; return { ...unit, prompts, cueSpeaker: unit.cueSpeaker || prompts[0].cueSpeaker, cue: unit.cue || prompts[0].cue, words: unit.words || (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length, weight: unit.weight || Math.max(Number(unit.minutes || 0) * 8, (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length), difficulty: unit.difficulty || 'stredná', weak: Boolean(unit.weak), order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index, completedAt: unit.completedAt ?? null }; }), createdAt, updatedAt: game.updatedAt ?? nowIso() };
 }
 
 try {
@@ -305,8 +308,23 @@ function renderPlanChange() {
 }
 
 function renderGameUnit(unit, game) {
-  const row = element('article', `game-unit${unit.completedAt ? ' done' : ''}`);
-  const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Označiť úsek ako hotový: ${unit.sceneTitle}`);
+  const row = element('article', `game-unit study-line-card${unit.completedAt ? ' done' : ''}${unit.weak ? ' weak' : ''}`);
+  const top = element('div', 'study-line-top');
+  const label = unit.line ? `Replika ${unit.line}${unit.part || ''}` : `Úsek ${Number(unit.order ?? 0) + 1}`;
+  const identity = element('div'); identity.append(element('strong', 'line-number', label), element('span', `difficulty difficulty-${unit.difficulty}`, unit.difficulty));
+  const weak = element('button', `weak-button${unit.weak ? ' active' : ''}`, unit.weak ? '★ Ťažké' : '☆ Označiť ako ťažké'); weak.type = 'button'; weak.setAttribute('aria-pressed', String(unit.weak));
+  weak.addEventListener('click', () => { unit.weak = !unit.weak; game.updatedAt = nowIso(); persist(); renderPlanChange(); }); top.append(identity, weak);
+  const context = element('p', 'game-unit-meta', `${unit.section || unit.act || ''} · ${unit.sceneTitle || unit.beat || ''} · približne ${unit.minutes} min`);
+  const prompts = element('div', 'study-prompts');
+  for (const prompt of unit.prompts ?? [{ cueSpeaker: unit.cueSpeaker, cue: unit.cue, text: unit.text }]) {
+    const pair = element('div', 'study-prompt'); const cue = element('div', 'cue-box'); cue.append(element('strong', '', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cue || 'Vlastný nástup.'));
+    const own = hiddenGameUnits.has(unit.id) ? element('div', 'hidden-line', 'Replika je zakrytá — povedz ju po cue.') : element('p', 'own-line', prompt.text); pair.append(cue, own); prompts.append(pair);
+  }
+  const actions = element('div', 'study-line-actions'); const reveal = element('button', 'secondary', hiddenGameUnits.has(unit.id) ? 'Ukázať repliku' : 'Zakryť repliku'); reveal.type = 'button';
+  reveal.addEventListener('click', () => { if (hiddenGameUnits.has(unit.id)) hiddenGameUnits.delete(unit.id); else hiddenGameUnits.add(unit.id); renderGameDetail(); });
+  const doneControl = element('div', 'done-control');
+  const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Viem po cue: ${unit.sceneTitle}`);
+  doneControl.append(checkbox, element('span', '', 'Viem po cue'));
   const confirmation = element('span', 'unit-confirmation', '✓ Hotovo'); confirmation.setAttribute('aria-live', 'polite');
   checkbox.addEventListener('change', () => {
     const completed = checkbox.checked;
@@ -321,8 +339,7 @@ function renderGameUnit(unit, game) {
       game.updatedAt = nowIso(); persist(); renderPlanChange();
     }, delay);
   });
-  const copy = element('div'); copy.append(element('strong', '', unit.sceneTitle), element('div', 'game-unit-meta', `${unit.section} · približne ${unit.minutes} min`), element('p', '', unit.text));
-  row.append(checkbox, copy, confirmation); return row;
+  actions.append(reveal, doneControl); row.append(top, context, prompts, actions, confirmation); return row;
 }
 
 function calendarDateRange(start, end) {
@@ -334,7 +351,7 @@ function calendarDateRange(start, end) {
 
 function renderPlanCalendar(game, plan, today) {
   const calendar = byId('gameCalendar'); calendar.replaceChildren();
-  const dates = calendarDateRange(today, game.deadline);
+  const dates = calendarDateRange(game.startDate || today, game.deadline);
   if (!dates.length) { calendar.append(element('p', 'status-message error', 'Termín je pred dnešným dňom. Zvoľ nový termín.')); return; }
   if (!selectedPlanDate || !dates.includes(selectedPlanDate)) selectedPlanDate = dates.includes(today) ? today : dates[0];
   const daysOff = new Set(game.daysOff);
@@ -346,29 +363,48 @@ function renderPlanCalendar(game, plan, today) {
     const grid = element('div', 'calendar-grid');
     const firstOffset = (monthDates[0].date.getDay() + 6) % 7; for (let index = 0; index < firstOffset; index += 1) grid.append(element('span', 'calendar-blank'));
     for (const { key, date } of monthDates) {
-      const tasks = plan.schedule[key] ?? []; const button = element('button', `calendar-day${key === today ? ' today' : ''}${key === selectedPlanDate ? ' selected' : ''}${daysOff.has(key) ? ' off' : ''}`);
-      button.type = 'button'; button.setAttribute('aria-pressed', String(key === selectedPlanDate)); button.setAttribute('aria-label', `${formatPlanDate(key)}${daysOff.has(key) ? ', voľný deň' : tasks.length ? `, ${tasks.length} úsekov, ${tasks.reduce((sum, unit) => sum + unit.minutes, 0)} minút` : ', bez nového textu'}`);
+      const tasks = plan.schedule[key] ?? []; const reviewCount = plan.reviews[key]?.length ?? 0; const moved = key < today && tasks.some(unit => !unit.completedAt); const button = element('button', `calendar-day${key === today ? ' today' : ''}${key === selectedPlanDate ? ' selected' : ''}${daysOff.has(key) ? ' off' : ''}${moved ? ' moved' : ''}`);
+      button.type = 'button'; button.setAttribute('aria-pressed', String(key === selectedPlanDate)); button.setAttribute('aria-label', `${formatPlanDate(key)}${daysOff.has(key) ? ', voľný deň' : `, ${tasks.length} nových úsekov, ${reviewCount} opakovaní`}`);
       button.append(element('strong', '', String(date.getDate())));
       if (daysOff.has(key)) button.append(element('span', 'calendar-off', 'voľno'));
-      else if (tasks.length) button.append(element('span', 'calendar-load', `${tasks.length} · ${tasks.reduce((sum, unit) => sum + unit.minutes, 0)}m`));
+      else if (moved) button.append(element('span', 'calendar-load', `${tasks.length} · presunuté`));
+      else if (tasks.length || reviewCount) button.append(element('span', 'calendar-load', `${tasks.length} nové${reviewCount ? ` · ↻ ${reviewCount}` : ''}`));
       button.addEventListener('click', () => { selectedPlanDate = key; renderGameDetail(); }); grid.append(button);
     }
     month.append(grid); calendar.append(month);
   }
 }
 
+function renderAllGameUnits(game) {
+  const search = byId('gameLineSearch'); const filter = byId('gameActFilter'); const box = byId('gameAllUnits');
+  const acts = [...new Set(game.units.map(unit => unit.section || unit.act).filter(Boolean))]; const current = filter.value;
+  filter.replaceChildren(new Option('Všetky', ''), ...acts.map(act => new Option(act, act))); filter.value = acts.includes(current) ? current : '';
+  const query = search.value.trim().toLocaleLowerCase('sk'); box.replaceChildren();
+  const visible = [...game.units].sort((a, b) => Number(a.order) - Number(b.order)).filter(unit => {
+    const act = unit.section || unit.act || ''; const haystack = `${unit.text} ${unit.cue} ${unit.sceneTitle} ${(unit.prompts ?? []).map(prompt => `${prompt.cue} ${prompt.text}`).join(' ')}`.toLocaleLowerCase('sk');
+    return (!filter.value || act === filter.value) && haystack.includes(query);
+  });
+  if (!visible.length) box.append(element('p', 'muted-copy', 'Nenašiel sa žiadny úsek.'));
+  else visible.forEach(unit => box.append(renderGameUnit(unit, game)));
+}
+
 function renderGameDetail() {
   const game = findGame(currentGameId); if (!game) return showGames();
   byId('gameDetailHeading').textContent = game.title; byId('gameDetailMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
-  const today = localDateKey(); const plan = buildSchedule(game.units, { start: today, deadline: game.deadline, daysOff: game.daysOff });
+  const today = localDateKey(); const options = { start: today, calendarStart: game.startDate, newMaterialEnd: game.newMaterialEnd, deadline: game.deadline, daysOff: game.daysOff, lockedPlans: game.lockedPlans };
+  let plan = buildSchedule(game.units, options);
+  if (!Object.hasOwn(game.lockedPlans, today) && today <= game.deadline && !game.daysOff.includes(today)) { game.lockedPlans[today] = (plan.schedule[today] ?? []).map(unit => unit.id); persist(); plan = buildSchedule(game.units, options); }
   const done = game.units.filter(unit => unit.completedAt).length; const total = game.units.length; const remaining = plan.totalMinutes;
+  const totalWeight = game.units.reduce((sum, unit) => sum + unitWeight(unit), 0); const doneWeight = game.units.filter(unit => unit.completedAt).reduce((sum, unit) => sum + unitWeight(unit), 0);
   const metrics = byId('gameMetrics'); metrics.replaceChildren();
-  for (const [label, value] of [['Naučené', `${total ? Math.round(done / total * 100) : 0} %`], ['Zostáva', `${remaining} min`], ['Potrebné denne', `${plan.requiredDailyMinutes} min`], ['Termín', formatPlanDate(game.deadline)]]) { const card = element('article', 'metric-card'); card.append(element('span', '', label), element('strong', '', value)); metrics.append(card); }
+  for (const [label, value] of [['Naučené', `${totalWeight ? Math.round(doneWeight / totalWeight * 100) : 0} %`], ['Zostáva', `${remaining} min`], ['Potrebné denne', `${plan.requiredDailyMinutes} min`], ['Termín', formatPlanDate(game.deadline)]]) { const card = element('article', 'metric-card'); card.append(element('span', '', label), element('strong', '', value)); metrics.append(card); }
   const pace = byId('gamePace'); pace.textContent = plan.impossible ? 'Nie je dostupný žiadny deň.' : plan.requiredDailyMinutes > 70 ? 'Vyššie tempo' : 'Plán je rozložený'; pace.className = plan.impossible || plan.requiredDailyMinutes > 70 ? 'error' : '';
   const todayBox = byId('todayPlan'); todayBox.replaceChildren(); const todayUnits = plan.schedule[today] ?? [];
   if (!todayUnits.length) todayBox.append(element('p', 'muted-copy', plan.impossible ? 'Uprav voľné dni alebo termín.' : 'Dnes nemáš naplánovaný nový úsek.'));
   else todayUnits.forEach(unit => todayBox.append(renderGameUnit(unit, game)));
-  byId('gameDeadline').value = game.deadline;
+  const reviews = byId('todayReviews'); reviews.replaceChildren(); const reviewUnits = plan.reviews[today] ?? [];
+  if (reviewUnits.length) { reviews.append(element('h3', 'review-heading', `Opakovanie po 1, 3 alebo 7 dňoch · ${reviewUnits.length}`)); reviewUnits.forEach(unit => reviews.append(renderGameUnit(unit, game))); }
+  byId('gameDeadline').value = game.deadline; byId('gameNewMaterialEnd').value = game.newMaterialEnd;
   const daysOff = byId('gameDaysOff'); daysOff.replaceChildren(); for (const date of game.daysOff) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { game.daysOff = game.daysOff.filter(day => day !== date); game.updatedAt = nowIso(); persist(); renderGameDetail(); }); daysOff.append(button); }
   renderPlanCalendar(game, plan, today);
   const schedule = byId('gameSchedule'); schedule.replaceChildren();
@@ -379,8 +415,9 @@ function renderGameDetail() {
   else if (game.daysOff.includes(selectedPlanDate)) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} máš označený ako voľný deň.`));
   else {
     const selectedTasks = plan.schedule[selectedPlanDate] ?? [];
-    if (!selectedTasks.length) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} zatiaľ nemá naplánovaný nový text.`));
-    else { const card = element('article', 'game-day selected-day'); card.append(element('h3', '', formatPlanDate(selectedPlanDate)), element('p', 'muted-copy', `${selectedTasks.length} úsekov · približne ${selectedTasks.reduce((sum, unit) => sum + unit.minutes, 0)} min`)); selectedTasks.forEach(unit => card.append(renderGameUnit(unit, game))); schedule.append(card); }
+    const selectedReviews = plan.reviews[selectedPlanDate] ?? [];
+    if (!selectedTasks.length && !selectedReviews.length) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} nemá nový text ani opakovanie.`));
+    else { const card = element('article', 'game-day selected-day'); card.append(element('h3', '', formatPlanDate(selectedPlanDate)), element('p', 'muted-copy', `${selectedTasks.length} nových úsekov${selectedReviews.length ? ` · ${selectedReviews.length} na opakovanie` : ''}`)); selectedTasks.forEach(unit => card.append(renderGameUnit(unit, game))); if (selectedReviews.length) { card.append(element('h4', 'review-heading', 'Opakovanie')); selectedReviews.forEach(unit => card.append(renderGameUnit(unit, game))); } schedule.append(card); }
   }
   const feedback = byId('planFeedback');
   if (lastPlanAction) {
@@ -390,6 +427,7 @@ function renderGameDetail() {
     lastPlanAction = null;
   }
   const scenes = byId('gameScenes'); scenes.replaceChildren(); for (const scene of gameScenes(game)) { const row = element('article', 'rehearsal-card'); row.append(element('h3', '', scene.title), element('p', 'card-meta', `${scene.scene} · ${scene.parsed?.entries?.filter(entry => entry.type === 'speech' && entry.speaker === game.character).length ?? 0} replík`)); const button = element('button', 'secondary', 'Otvoriť scénu'); button.type = 'button'; button.addEventListener('click', () => openRehearsal(scene.id)); row.append(button); scenes.append(row); }
+  renderAllGameUnits(game);
   const completedPanel = byId('completedUnitsPanel'); const completedBox = byId('completedUnits'); completedBox.replaceChildren(); const completedUnits = game.units.filter(unit => unit.completedAt).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
   byId('completedUnitsCount').textContent = completedUnits.length ? `${completedUnits.length} hotových` : 'zatiaľ žiadne';
   completedPanel.classList.toggle('hidden', !completedUnits.length);
@@ -658,6 +696,7 @@ function renderScriptImportPreview() {
   byId('gameImportOptions').classList.remove('hidden');
   if (!byId('scriptImportGameTitle').value) byId('scriptImportGameTitle').value = sourceTitle;
   if (!byId('scriptImportDeadline').value) { const deadline = new Date(); deadline.setDate(deadline.getDate() + 30); byId('scriptImportDeadline').value = localDateKey(deadline); }
+  if (!byId('scriptImportNewMaterialEnd').value) byId('scriptImportNewMaterialEnd').value = addPlanDays(byId('scriptImportDeadline').value, -3);
   renderImportUnits(); renderImportDaysOff();
 
   if (parsedDocument.unknowns.length) {
@@ -753,8 +792,9 @@ function confirmScriptImport() {
   const state = scriptImportState;
   const character = byId('scriptImportCharacter').value;
   if (!state?.draft || !character) return;
-  const title = byId('scriptImportGameTitle').value.trim(); const deadline = byId('scriptImportDeadline').value;
+  const title = byId('scriptImportGameTitle').value.trim(); const deadline = byId('scriptImportDeadline').value; const newMaterialEnd = byId('scriptImportNewMaterialEnd').value || addPlanDays(deadline, -3);
   if (!title || !deadline) { setLibraryMessage('Doplň názov hry a termín učenia.', true); return; }
+  if (newMaterialEnd > deadline) { setLibraryMessage('Nový text musí byť naplánovaný najneskôr do finálneho termínu.', true); return; }
   const timestamp = nowIso(); const gameId = newId();
   const imported = [];
   for (const scene of state.draft.scenes) {
@@ -778,7 +818,7 @@ function confirmScriptImport() {
     }));
   }
   if (!imported.length) { setLibraryMessage('Import nevytvoril žiadnu použiteľnú scénu.', true); return; }
-  appData.games.push(normalizeGame({ id: gameId, title, character, importFingerprint: state.fingerprint, deadline, daysOff: state.daysOff, units: state.draft.units, createdAt: timestamp, updatedAt: timestamp }));
+  appData.games.push(normalizeGame({ id: gameId, title, character, importFingerprint: state.fingerprint, startDate: localDateKey(), deadline, newMaterialEnd, daysOff: state.daysOff, lockedPlans: {}, units: state.draft.units, createdAt: timestamp, updatedAt: timestamp }));
   appData.rehearsals.push(...imported);
   if (!persist(`Hra má ${imported.filter(item => item.type === 'scene').length} scén a denný plán.`)) return;
   closeScriptImport();
@@ -1275,7 +1315,10 @@ byId('gamesImportBtn').addEventListener('click', openScriptImport);
 byId('emptyGamesImportBtn').addEventListener('click', openScriptImport);
 byId('backToGamesBtn').addEventListener('click', showGames);
 byId('gameDeadline').addEventListener('change', () => { const game = findGame(currentGameId); if (!game || !byId('gameDeadline').value) return; game.deadline = byId('gameDeadline').value; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
+byId('gameNewMaterialEnd').addEventListener('change', () => { const game = findGame(currentGameId); const date = byId('gameNewMaterialEnd').value; if (!game || !date) return; game.newMaterialEnd = date > game.deadline ? game.deadline : date; game.updatedAt = nowIso(); persist(); renderGameDetail(); });
 byId('addGameDayOffBtn').addEventListener('click', () => { const game = findGame(currentGameId); const date = byId('gameDayOff').value; if (!game || !date || game.daysOff.includes(date)) return; game.daysOff.push(date); game.daysOff.sort(); game.updatedAt = nowIso(); byId('gameDayOff').value = ''; persist(); renderGameDetail(); });
+byId('gameLineSearch').addEventListener('input', () => { const game = findGame(currentGameId); if (game) renderAllGameUnits(game); });
+byId('gameActFilter').addEventListener('change', () => { const game = findGame(currentGameId); if (game) renderAllGameUnits(game); });
 byId('cancelEditorBtn').addEventListener('click', closeEditor);
 byId('rehearsalForm').addEventListener('submit', saveRehearsalFromForm);
 byId('cancelSceneEditorBtn').addEventListener('click', closeSceneEditor);
@@ -1283,6 +1326,7 @@ byId('sceneForm').addEventListener('submit', saveSceneFromForm);
 byId('sceneText').addEventListener('input', updateScenePreview);
 byId('cancelScriptImportBtn').addEventListener('click', closeScriptImport);
 byId('scriptImportFileButton').addEventListener('click', () => byId('scriptImportFile').click());
+byId('scriptImportDeadline').addEventListener('change', () => { const deadline = byId('scriptImportDeadline').value; if (!deadline) return; byId('scriptImportNewMaterialEnd').max = deadline; if (!byId('scriptImportNewMaterialEnd').value || byId('scriptImportNewMaterialEnd').value > deadline) byId('scriptImportNewMaterialEnd').value = addPlanDays(deadline, -3); });
 byId('scriptImportFile').addEventListener('change', async event => {
   const [file] = event.target.files;
   if (!file) return;
