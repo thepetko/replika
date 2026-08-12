@@ -36,6 +36,7 @@ import {
 import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
 import { addPlanDays, buildSchedule, localDateKey, unitWeight } from './game-plan.js';
 import { createStudyUnits, mergeUnitWithNext, splitUnit } from './game-segments.js';
+import { enrichStudyUnitPrompts } from './game-dialogue.js';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -51,6 +52,7 @@ let storageHealthy = true;
 let currentView = 'games';
 let currentRehearsalId = null;
 let currentGameId = null;
+let activeGameTab = 'plan';
 let selectedPlanDate = null;
 let lastPlanAction = null;
 let planFeedbackTimer = null;
@@ -240,25 +242,14 @@ function element(tag, className, text) {
   return node;
 }
 
+function normalizedDialogueLabel(text = '') { return String(text).toLocaleLowerCase('sk').replace(/[^\p{L}\p{N}]+/gu, ' ').trim(); }
+
 function showView(name) {
   currentView = name;
   for (const [viewName, view] of Object.entries(views)) {
     view.classList.toggle('hidden', viewName !== name);
   }
   const inTraining = name === 'training';
-  byId('bottomNav').classList.toggle('hidden', inTraining);
-  const activeNav = name === 'progress' ? 'progress' : name === 'games' || name === 'gameDetail' ? 'games' : activeLibraryTab;
-  const navItems = {
-    games: byId('gamesNavBtn'),
-    rehearsal: byId('libraryNavBtn'),
-    scene: byId('scenesNavBtn'),
-    progress: byId('progressNavBtn')
-  };
-  for (const [key, button] of Object.entries(navItems)) {
-    const active = key === activeNav;
-    button.classList.toggle('active', active);
-    button.toggleAttribute('aria-current', active);
-  }
   tracker.setRehearsalId(inTraining ? currentRehearsalId : null);
   byId('mainContent').focus({ preventScroll: true });
 }
@@ -276,6 +267,10 @@ function formatPlanDate(key) {
 }
 
 function gameScenes(game) { return appData.rehearsals.filter(item => item.type === 'scene' && item.gameId === game.id); }
+
+function enrichLegacyGamePrompts(game) {
+  return enrichStudyUnitPrompts(game.units, gameScenes(game).map(scene => ({ title: scene.title, entries: scene.parsed?.entries ?? [] })), game.character);
+}
 
 function setGamesMessage(message = '', isError = false) {
   const node = byId('gamesMessage'); node.textContent = message; node.classList.toggle('error', isError);
@@ -312,15 +307,18 @@ function renderGameUnit(unit, game) {
   const top = element('div', 'study-line-top');
   const label = unit.line ? `Replika ${unit.line}${unit.part || ''}` : `Úsek ${Number(unit.order ?? 0) + 1}`;
   const identity = element('div'); identity.append(element('strong', 'line-number', label), element('span', `difficulty difficulty-${unit.difficulty}`, unit.difficulty));
-  const weak = element('button', `weak-button${unit.weak ? ' active' : ''}`, unit.weak ? '★ Ťažké' : '☆ Označiť ako ťažké'); weak.type = 'button'; weak.setAttribute('aria-pressed', String(unit.weak));
+  const weak = element('button', `weak-button${unit.weak ? ' active' : ''}`, unit.weak ? '★ Ťažké' : '☆ Ťažké'); weak.type = 'button'; weak.setAttribute('aria-label', unit.weak ? 'Zrušiť označenie ťažkého miesta' : 'Označiť ako ťažké miesto'); weak.setAttribute('aria-pressed', String(unit.weak));
   weak.addEventListener('click', () => { unit.weak = !unit.weak; game.updatedAt = nowIso(); persist(); renderPlanChange(); }); top.append(identity, weak);
-  const context = element('p', 'game-unit-meta', `${unit.section || unit.act || ''} · ${unit.sceneTitle || unit.beat || ''} · približne ${unit.minutes} min`);
+  const section = unit.section || unit.act || ''; const scene = unit.sceneTitle || unit.beat || '';
+  const place = section && scene && normalizedDialogueLabel(scene).includes(normalizedDialogueLabel(section)) ? scene : [section, scene].filter(Boolean).join(' · ');
+  const context = element('p', 'game-unit-meta', `${place}${place ? ' · ' : ''}${unit.minutes} min`);
   const prompts = element('div', 'study-prompts');
   for (const prompt of unit.prompts ?? [{ cueSpeaker: unit.cueSpeaker, cue: unit.cue, text: unit.text }]) {
-    const pair = element('div', 'study-prompt'); const cue = element('div', 'cue-box'); cue.append(element('strong', '', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cue || 'Vlastný nástup.'));
-    const own = hiddenGameUnits.has(unit.id) ? element('div', 'hidden-line', 'Replika je zakrytá — povedz ju po cue.') : element('p', 'own-line', prompt.text); pair.append(cue, own); prompts.append(pair);
+    const pair = element('div', 'study-prompt'); const cue = element('div', 'dialogue-line partner-line'); cue.append(element('strong', 'dialogue-speaker', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cueFull || prompt.cue || 'Vlastný nástup.'));
+    const own = element('div', 'dialogue-line own-dialogue'); own.append(element('strong', 'dialogue-speaker', game.character));
+    own.append(hiddenGameUnits.has(unit.id) ? element('div', 'hidden-line', 'Povedz repliku spamäti.') : element('p', 'own-line', prompt.text)); pair.append(cue, own); prompts.append(pair);
   }
-  const actions = element('div', 'study-line-actions'); const reveal = element('button', 'secondary', hiddenGameUnits.has(unit.id) ? 'Ukázať repliku' : 'Zakryť repliku'); reveal.type = 'button';
+  const actions = element('div', 'study-line-actions'); const reveal = element('button', 'secondary', hiddenGameUnits.has(unit.id) ? 'Ukázať moje repliky' : 'Zakryť moje repliky'); reveal.type = 'button';
   reveal.addEventListener('click', () => { if (hiddenGameUnits.has(unit.id)) hiddenGameUnits.delete(unit.id); else hiddenGameUnits.add(unit.id); renderGameDetail(); });
   const doneControl = element('div', 'done-control');
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = Boolean(unit.completedAt); checkbox.setAttribute('aria-label', `Viem po cue: ${unit.sceneTitle}`);
@@ -388,8 +386,19 @@ function renderAllGameUnits(game) {
   else visible.forEach(unit => box.append(renderGameUnit(unit, game)));
 }
 
+function showGameTab(tab, focus = false) {
+  activeGameTab = ['plan', 'scenes', 'lines', 'progress'].includes(tab) ? tab : 'plan';
+  const tabs = { plan: byId('gamePlanTab'), scenes: byId('gameScenesTab'), lines: byId('gameLinesTab'), progress: byId('gameProgressTab') };
+  const panels = { plan: byId('gamePlanPanel'), scenes: byId('gameScenesPanel'), lines: byId('gameLinesPanel'), progress: byId('gameProgressPanel') };
+  for (const key of Object.keys(tabs)) {
+    const active = key === activeGameTab; tabs[key].classList.toggle('active', active); tabs[key].setAttribute('aria-selected', String(active)); tabs[key].tabIndex = active ? 0 : -1; panels[key].classList.toggle('hidden', !active);
+  }
+  if (focus) { tabs[activeGameTab].focus(); panels[activeGameTab].scrollIntoView({ block: 'start', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+}
+
 function renderGameDetail() {
   const game = findGame(currentGameId); if (!game) return showGames();
+  if (enrichLegacyGamePrompts(game)) { game.updatedAt = nowIso(); persist(); }
   byId('gameDetailHeading').textContent = game.title; byId('gameDetailMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
   const today = localDateKey(); const options = { start: today, calendarStart: game.startDate, newMaterialEnd: game.newMaterialEnd, deadline: game.deadline, daysOff: game.daysOff, lockedPlans: game.lockedPlans };
   let plan = buildSchedule(game.units, options);
@@ -408,8 +417,8 @@ function renderGameDetail() {
   const daysOff = byId('gameDaysOff'); daysOff.replaceChildren(); for (const date of game.daysOff) { const button = element('button', '', `Voľno ${formatPlanDate(date)} ×`); button.type = 'button'; button.addEventListener('click', () => { game.daysOff = game.daysOff.filter(day => day !== date); game.updatedAt = nowIso(); persist(); renderGameDetail(); }); daysOff.append(button); }
   renderPlanCalendar(game, plan, today);
   const schedule = byId('gameSchedule'); schedule.replaceChildren();
-  byId('planDaysHeading').textContent = 'Plán v kalendári';
-  byId('gameScheduleHelp').textContent = 'Klikni na deň a uvidíš jeho dávky. Značka ukazuje počet úsekov a odhad času.';
+  byId('planDaysHeading').textContent = 'Kalendár';
+  byId('gameScheduleHelp').textContent = 'Vyber deň a otvor jeho učebné úseky.';
   if (plan.impossible) schedule.append(element('p', 'status-message error', 'V termíne nie je žiadny dostupný deň. Zruš aspoň jedno voľno alebo posuň termín.'));
   else if (selectedPlanDate === today) schedule.append(element('p', 'muted-copy', todayUnits.length ? 'Dnešné dávky sú zobrazené hore, aby si mal najbližší krok hneď po otvorení.' : 'Dnes už nemáš naplánovaný nový text.'));
   else if (game.daysOff.includes(selectedPlanDate)) schedule.append(element('p', 'muted-copy', `${formatPlanDate(selectedPlanDate)} máš označený ako voľný deň.`));
@@ -432,9 +441,10 @@ function renderGameDetail() {
   byId('completedUnitsCount').textContent = completedUnits.length ? `${completedUnits.length} hotových` : 'zatiaľ žiadne';
   completedPanel.classList.toggle('hidden', !completedUnits.length);
   for (const unit of completedUnits) { const row = renderGameUnit(unit, game); row.querySelector('.game-unit-meta').textContent = `${unit.section} · hotovo ${formatPlanDate(localDateKey(unit.completedAt))}`; completedBox.append(row); }
+  showGameTab(activeGameTab);
 }
 
-function openGame(id) { currentGameId = id; showView('gameDetail'); renderGameDetail(); }
+function openGame(id, tab) { if (currentGameId !== id) activeGameTab = tab ?? 'plan'; else if (tab) activeGameTab = tab; currentGameId = id; showView('gameDetail'); renderGameDetail(); }
 
 function renderLibrary() {
   refreshReviewStatuses();
@@ -561,7 +571,6 @@ function openEditor(id = null) {
   byId('rehearsalCharacter').value = rehearsal?.character ?? '';
   byId('rehearsalScene').value = rehearsal?.scene ?? '';
   byId('editorPanel').classList.remove('hidden');
-  byId('bottomNav').classList.add('hidden');
   byId('emptyLibrary').classList.add('hidden');
   byId('rehearsalTitle').focus();
 }
@@ -571,7 +580,6 @@ function closeEditor() {
   editingType = 'rehearsal';
   byId('rehearsalForm').reset();
   byId('editorPanel').classList.add('hidden');
-  byId('bottomNav').classList.remove('hidden');
   renderLibrary();
 }
 
@@ -607,7 +615,6 @@ function openSceneEditor(id = null) {
   byId('editorPanel').classList.add('hidden');
   updateScenePreview();
   if (rehearsal?.character) byId('sceneCharacter').value = rehearsal.character;
-  byId('bottomNav').classList.add('hidden');
   byId('emptyLibrary').classList.add('hidden');
   byId('sceneTitle').focus();
 }
@@ -618,7 +625,6 @@ function closeSceneEditor() {
   byId('sceneForm').reset();
   byId('scenePreview').classList.add('hidden');
   byId('sceneEditorPanel').classList.add('hidden');
-  byId('bottomNav').classList.remove('hidden');
   renderLibrary();
 }
 
@@ -639,7 +645,6 @@ function closeScriptImport() {
   byId('gameImportOptions').classList.add('hidden');
   byId('confirmScriptImportBtn').disabled = true;
   byId('scriptImportPanel').classList.add('hidden');
-  byId('bottomNav').classList.remove('hidden');
   document.querySelector('.library-tabs').classList.remove('hidden');
   document.querySelector('.library-header-actions').classList.remove('hidden');
   if (returnToGames) showGames(); else renderLibrary();
@@ -655,7 +660,6 @@ function openScriptImport() {
   byId('editorPanel').classList.add('hidden');
   byId('sceneEditorPanel').classList.add('hidden');
   byId('scriptImportPanel').classList.remove('hidden');
-  byId('bottomNav').classList.add('hidden');
   byId('emptyLibrary').classList.add('hidden');
   byId('scriptImportFileButton').focus();
   scriptImportState = { returnToGames };
@@ -1299,10 +1303,12 @@ const tracker = new VisibleActivityTracker({
 });
 
 byId('brandButton').addEventListener('click', showGames);
-byId('gamesNavBtn').addEventListener('click', showGames);
-byId('libraryNavBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
-byId('scenesNavBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; showLibrary(); });
-byId('progressNavBtn').addEventListener('click', showProgress);
+byId('standaloneLibraryBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
+byId('backFromLibraryBtn').addEventListener('click', showGames);
+for (const [id, tab] of [['gamePlanTab', 'plan'], ['gameScenesTab', 'scenes'], ['gameLinesTab', 'lines'], ['gameProgressTab', 'progress']]) byId(id).addEventListener('click', () => showGameTab(tab, true));
+byId('gameDetailView').querySelector('.game-tabs').addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return; event.preventDefault(); const tabs = ['plan', 'scenes', 'lines', 'progress']; const direction = event.key === 'ArrowRight' ? 1 : -1; showGameTab(tabs[(tabs.indexOf(activeGameTab) + direction + tabs.length) % tabs.length], true);
+});
 byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; syncLibraryTabs(); renderLibrary(); });
 byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; syncLibraryTabs(); renderLibrary(); });
 byId('newRehearsalBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());

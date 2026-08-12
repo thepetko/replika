@@ -140,6 +140,7 @@ export function createPresenceScenes(document, character, options = {}) {
     if (entry.type === 'heading') {
       finish();
       section = entry.text;
+      lastForeignEntry = null;
       continue;
     }
     if (entry.type === 'speech' && entry.speaker === character) {
@@ -150,6 +151,7 @@ export function createPresenceScenes(document, character, options = {}) {
         finish();
         collected.push(...leadIn);
       }
+      if (!hasOwnSpeech && lastForeignEntry) collected.push(lastForeignEntry);
       collected.push(entry);
       hasOwnSpeech = true;
       if (partnerBeforeOwn) lastPartner = partnerBeforeOwn;
@@ -158,7 +160,7 @@ export function createPresenceScenes(document, character, options = {}) {
       if (closesOnExit(entry, character)) finish();
       continue;
     }
-    if (!hasOwnSpeech) continue;
+    if (!hasOwnSpeech) { if (entry.type === 'speech') lastForeignEntry = entry; continue; }
     collected.push(entry);
     if (entry.type === 'speech') {
       foreignTurns += 1;

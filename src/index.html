@@ -34,7 +34,7 @@
     <section class="view" id="gamesView" aria-labelledby="gamesHeading">
       <div class="page-heading">
         <div><p class="eyebrow">Tvoje inscenácie</p><h1 id="gamesHeading">Hry</h1></div>
-        <button class="primary" id="gamesImportBtn" type="button">Importovať scenár</button>
+        <div class="page-actions"><button class="secondary" id="standaloneLibraryBtn" type="button">Samostatné texty</button><button class="primary" id="gamesImportBtn" type="button">Importovať scenár</button></div>
       </div>
       <p class="status-message" id="gamesMessage" role="status" aria-live="polite"></p>
       <div class="empty-state hidden" id="emptyGames"><div class="empty-symbol" aria-hidden="true">“</div><h2>Pridaj prvú hru</h2><p>Importuj celý scenár, vyber postavu a Replika pripraví scény aj denný plán.</p><button class="primary" id="emptyGamesImportBtn" type="button">Importovať scenár</button></div>
@@ -43,16 +43,24 @@
 
     <section class="view hidden" id="gameDetailView" aria-labelledby="gameDetailHeading">
       <div class="training-topbar"><button class="back-button" id="backToGamesBtn" type="button">← Hry</button><div class="training-identity"><h1 id="gameDetailHeading">Hra</h1><p id="gameDetailMeta"></p></div></div>
-      <div class="metric-grid game-metrics" id="gameMetrics"></div>
-      <section class="editor-panel game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný focus</h2></div><strong id="gamePace"></strong></div><p class="focus-method">Cue nahlas → 3× s textom → zakryť → 3 čisté pokusy.</p><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div><div id="todayReviews"></div></section>
-      <section class="editor-panel" aria-labelledby="gameSettingsHeading"><div class="section-heading"><h2 id="gameSettingsHeading">Termín a voľno</h2></div><div class="optional-grid"><div><label for="gameNewMaterialEnd">Nový text dokončiť do</label><input id="gameNewMaterialEnd" type="date"><p class="field-help">Neskoršie dni zostanú na opakovanie.</p></div><div><label for="gameDeadline">Finálny termín</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></section>
-      <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><p class="eyebrow">Automaticky prepočítané</p><h2 id="planDaysHeading">Plán v kalendári</h2></div></div><p class="field-help" id="gameScheduleHelp">Klikni na deň a uvidíš jeho dávky. Značka ukazuje počet úsekov a odhad času.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div><div class="game-day-list" id="gameSchedule"></div></section>
-      <section aria-labelledby="gameScenesHeading"><div class="section-heading"><h2 id="gameScenesHeading">Scény a obrazy</h2></div><div class="rehearsal-list" id="gameScenes"></div></section>
-      <details class="optional-fields all-lines-panel"><summary>Všetky učebné úseky</summary><div class="all-lines-filters"><label for="gameLineSearch">Hľadať<input id="gameLineSearch" type="search" placeholder="Replika, cue alebo scéna"></label><label for="gameActFilter">Dejstvo<select id="gameActFilter"><option value="">Všetky</option></select></label></div><div class="game-day-list" id="gameAllUnits"></div></details>
-      <details class="optional-fields" id="completedUnitsPanel"><summary>Hotové dávky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details>
+      <nav class="game-tabs" role="tablist" aria-label="Časti hry">
+        <button class="active" id="gamePlanTab" type="button" role="tab" aria-selected="true" aria-controls="gamePlanPanel">Denný plán</button>
+        <button id="gameScenesTab" type="button" role="tab" aria-selected="false" aria-controls="gameScenesPanel">Scény</button>
+        <button id="gameLinesTab" type="button" role="tab" aria-selected="false" aria-controls="gameLinesPanel">Repliky</button>
+        <button id="gameProgressTab" type="button" role="tab" aria-selected="false" aria-controls="gameProgressPanel">Pokrok</button>
+      </nav>
+      <div id="gamePlanPanel" role="tabpanel" aria-labelledby="gamePlanTab">
+        <section class="game-today" aria-labelledby="todayPlanHeading"><div class="section-heading"><div><p class="eyebrow">Najbližší krok</p><h2 id="todayPlanHeading">Dnešný plán</h2></div><strong id="gamePace"></strong></div><p class="focus-method">Prečítaj partnera → povedz svoju repliku → zakry text → zopakuj spamäti.</p><div id="planFeedback" class="plan-feedback hidden" role="status" aria-live="polite"></div><div id="todayPlan"></div><div id="todayReviews"></div></section>
+        <section aria-labelledby="planDaysHeading"><div class="section-heading"><div><h2 id="planDaysHeading">Kalendár</h2></div></div><p class="field-help" id="gameScheduleHelp">Vyber deň a otvor jeho učebné úseky.</p><div class="plan-calendar" id="gameCalendar" aria-label="Kalendár plánu učenia"></div><div class="game-day-list" id="gameSchedule"></div></section>
+        <details class="optional-fields plan-settings"><summary>Upraviť termín a voľné dni</summary><div class="optional-grid"><div><label for="gameNewMaterialEnd">Nový text dokončiť do</label><input id="gameNewMaterialEnd" type="date"><p class="field-help">Neskoršie dni zostanú na opakovanie.</p></div><div><label for="gameDeadline">Finálny termín</label><input id="gameDeadline" type="date"></div><div><label for="gameDayOff">Voľný deň</label><div class="compact-actions"><input id="gameDayOff" type="date"><button id="addGameDayOffBtn" type="button">Pridať</button></div></div></div><div class="day-off-list" id="gameDaysOff"></div></details>
+      </div>
+      <section id="gameScenesPanel" class="hidden" role="tabpanel" aria-labelledby="gameScenesTab"><div class="section-heading"><div><h2 id="gameScenesHeading">Scény</h2><p class="field-help">Otvor celú scénu a trénuj v kontexte partnerov.</p></div></div><div class="rehearsal-list" id="gameScenes"></div></section>
+      <section id="gameLinesPanel" class="hidden" role="tabpanel" aria-labelledby="gameLinesTab"><div class="section-heading"><div><h2>Repliky</h2><p class="field-help">Všetky učebné úseky v poradí scenára.</p></div></div><div class="all-lines-filters"><label for="gameLineSearch">Hľadať<input id="gameLineSearch" type="search" placeholder="Replika, partner alebo scéna"></label><label for="gameActFilter">Dejstvo<select id="gameActFilter"><option value="">Všetky</option></select></label></div><div class="game-day-list" id="gameAllUnits"></div></section>
+      <section id="gameProgressPanel" class="hidden" role="tabpanel" aria-labelledby="gameProgressTab"><div class="section-heading"><div><h2>Pokrok</h2><p class="field-help">Stav celej roly a história zvládnutých úsekov.</p></div></div><div class="metric-grid game-metrics" id="gameMetrics"></div><details class="optional-fields" id="completedUnitsPanel"><summary>Hotové úseky <span id="completedUnitsCount"></span></summary><div class="game-day-list" id="completedUnits"></div></details></section>
     </section>
 
     <section class="view hidden" id="libraryView" aria-labelledby="libraryHeading">
+      <button class="back-button" id="backFromLibraryBtn" type="button">← Hry</button>
       <div class="page-heading">
         <div>
           <p class="eyebrow">Tvoje texty</p>
@@ -300,21 +308,6 @@
     </section>
   </main>
 
-  <nav class="bottom-nav" id="bottomNav" aria-label="Hlavná navigácia">
-    <button class="nav-item active" id="gamesNavBtn" type="button" aria-current="page"><span class="nav-icon" aria-hidden="true">▤</span>Hry</button>
-    <button class="nav-item" id="libraryNavBtn" type="button">
-      <span class="nav-icon" aria-hidden="true">▤</span>
-      Repliky
-    </button>
-    <button class="nav-item" id="scenesNavBtn" type="button">
-      <span class="nav-icon" aria-hidden="true">▤</span>
-      Scény
-    </button>
-    <button class="nav-item" id="progressNavBtn" type="button">
-      <span class="nav-icon" aria-hidden="true">▥</span>
-      Pokrok
-    </button>
-  </nav>
 </div>
 
 <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmHeading">

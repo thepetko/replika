@@ -4,8 +4,9 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 
 ## Funkcie
 
-- lokálna knižnica viacerých replík,
-- samostatná knižnica scén s viditeľnými nástupmi kolegov,
+- úvodná knižnica hier; každá hra má vlastný denný plán, scény, repliky a pokrok,
+- vedľajšia knižnica samostatných textov mimo importovaných hier,
+- učebné úseky s plnými replikami partnerov a možnosťou zakryť iba vlastný text,
 - lokálny import celého scenára z DOCX alebo vloženého textu,
 - presné pokračovanie rozpracovanej relácie,
 - názov a voliteľne hra, postava a scéna,
@@ -19,6 +20,10 @@ Mobilný offline nástroj na učenie súvislých divadelných textov. Zachováva
 - bez účtu, cloudu a externých závislostí.
 
 Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho prehliadača. Medzi zariadeniami sa prenášajú exportom a importom backupu.
+
+## Navigácia
+
+Po otvorení aplikácie sa zobrazia iba hry. Detail konkrétnej hry má štyri časti: **Denný plán**, **Scény**, **Repliky** a **Pokrok**. Samostatné texty mimo hier zostávajú dostupné z úvodnej obrazovky cez tlačidlo **Samostatné texty**.
 
 ## Scény
 
@@ -65,7 +70,8 @@ npm test
 
 ## Štruktúra
 
-- `src/app.js` – obrazovky Knižnica, Tréning a Pokrok,
+- `src/app.js` – obrazovky hier, denného plánu, knižnice a tréningu,
+- `src/game-dialogue.js` – doplnenie partnerových replík do nových aj starších učebných úsekov,
 - `src/learning-engine.js` – čistý deterministický automat,
 - `src/parser.js` – delenie textu na vety a bloky,
 - `src/storage.js` – verzované dáta, migrácia a backup,

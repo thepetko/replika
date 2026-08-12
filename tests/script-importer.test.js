@@ -59,6 +59,17 @@ test('rozdelí scénu pri krátkej pauze a zmene partnera v dialógu', () => {
   assert.match(scenes[1].text, /TULÁK: Návrat k motýľovi/);
 });
 
+test('prvá vlastná replika v scéne zachová bezprostredný nástup partnera', () => {
+  const parsed = normalizeScriptParagraphs([
+    { text: 'Prvé dejstvo', style: 'Heading 1' },
+    { text: 'PETER: Tak prídeš dnes večer?', style: '' },
+    { text: 'ANNA: Prídem.', style: '' }
+  ]);
+  const [scene] = createPresenceScenes(parsed, 'ANNA');
+  assert.equal(scene.entries[0].speaker, 'PETER'); assert.equal(scene.entries[0].text, 'Tak prídeš dnes večer?');
+  assert.match(scene.text, /PETER: Tak prídeš dnes večer\?/);
+});
+
 test('navrhne dlhú alebo štruktúrne náročnú vlastnú repliku iba raz', () => {
   const line = 'Toto je dlhá replika s mnohými slovami, ktorá pokračuje ďalej, aby mala dostatočný rozsah a obsahovala viac viet. Druhá veta je prerušovaná — a znovu sa vracia k rovnakému slovu slovo. Tretia veta uzatvára myšlienku.';
   const scenes = [{ ownLines: [{ type: 'speech', speaker: 'TULÁK', text: line, sourceIndex: 8 }, { type: 'speech', speaker: 'TULÁK', text: line, sourceIndex: 8 }] }];

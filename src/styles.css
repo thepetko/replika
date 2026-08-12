@@ -98,7 +98,7 @@ button:focus-visible, summary:focus-visible, input:focus-visible, textarea:focus
   width: min(70rem, 100%);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 1rem 1rem 6.5rem;
+  padding: 1rem 1rem 2.5rem;
 }
 
 .app-header {
@@ -401,27 +401,14 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .completion-mark { display: grid; width: 5rem; height: 5rem; margin: 0 auto 1.2rem; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; font-size: 2.2rem; }
 .completion-card p { max-width: 36rem; margin-inline: auto; color: var(--muted); }
 
-.bottom-nav {
-  position: fixed;
-  z-index: 9;
-  right: 1rem;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  left: 1rem;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .35rem;
-  max-width: 31rem;
-  margin: 0 auto;
-  padding: .4rem;
-  border: 1px solid var(--line);
-  border-radius: 1.15rem;
-  background: rgb(255 255 255 / 94%);
-  box-shadow: 0 .8rem 2.5rem rgb(27 26 23 / 16%);
-  backdrop-filter: blur(.8rem);
-}
-
 .game-metrics { margin-bottom: 1rem; }
-.game-today { border-color: var(--ink); }
+.game-today { margin-bottom: 2.25rem; }
+.page-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
+.game-tabs { position: sticky; z-index: 8; top: 4.45rem; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem; margin: 0 0 1.5rem; padding: .3rem; border: 1px solid var(--line); border-radius: .9rem; background: var(--paper); }
+.game-tabs button { min-width: 0; min-height: 2.75rem; padding: .55rem .45rem; border-color: transparent; background: transparent; font-size: .88rem; }
+.game-tabs button.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+[role="tabpanel"] { scroll-margin-top: 8.5rem; }
+.plan-settings { margin-top: 1.5rem; }
 .game-day-list { display: grid; gap: .75rem; }
 .game-day { padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius-medium); background: var(--surface); }
 .game-day.today { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
@@ -443,7 +430,7 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .calendar-day.moved.selected { color: #fff; }
 .calendar-load, .calendar-off { overflow: hidden; font-size: .68rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-off { font-weight: 700; }
-.plan-feedback { position: fixed; z-index: 20; right: 1rem; bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 5rem)); left: 1rem; max-width: 34rem; margin: 0 auto; padding: .9rem 1rem; border: 1px solid #166534; border-radius: .85rem; background: #e9f7ec; color: #14532d; font-weight: 800; box-shadow: 0 .8rem 1.6rem rgb(20 83 45 / 18%); opacity: 0; transform: translateY(.8rem) scale(.97); }
+.plan-feedback { position: fixed; z-index: 20; right: 1rem; bottom: max(1rem, env(safe-area-inset-bottom)); left: 1rem; max-width: 34rem; margin: 0 auto; padding: .9rem 1rem; border: 1px solid #166534; border-radius: .85rem; background: #e9f7ec; color: #14532d; font-weight: 800; box-shadow: 0 .8rem 1.6rem rgb(20 83 45 / 18%); opacity: 0; transform: translateY(.8rem) scale(.97); }
 .plan-feedback.show { animation: plan-confirm 180ms cubic-bezier(.16, 1, .3, 1) forwards; }
 @keyframes plan-confirm { to { opacity: 1; transform: translateY(0) scale(1); } }
 .game-unit { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .75rem; align-items: start; padding: .85rem 0; border-top: 1px solid var(--line); transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
@@ -451,7 +438,7 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .game-unit input { width: 1.35rem; min-height: 1.35rem; margin-top: .15rem; padding: 0; accent-color: var(--ink); transition: transform 180ms cubic-bezier(.16, 1, .3, 1), filter 180ms ease; }
 .game-unit p { margin: .2rem 0 0; color: var(--muted); font-size: .85rem; white-space: pre-line; }
 .game-unit.done { opacity: .58; text-decoration: line-through; }
-.game-unit-meta { color: var(--muted); font-size: .78rem; font-weight: 700; }
+.game-unit-meta { max-width: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: .78rem; font-weight: 700; }
 .unit-confirmation { position: absolute; z-index: 1; top: 50%; left: 50%; padding: .45rem .8rem; border-radius: 999px; background: #166534; color: #fff; font-size: .9rem; font-weight: 900; opacity: 0; pointer-events: none; transform: translate(-50%, -35%) scale(.7); }
 .game-unit.is-completing { background: #e9f7ec; box-shadow: inset 0 0 0 1px #15803d; animation: task-complete 480ms cubic-bezier(.16, 1, .3, 1) both; }
 .game-unit.is-completing input { filter: drop-shadow(0 .15rem .2rem rgb(22 101 52 / 30%)); transform: scale(1.35); }
@@ -465,26 +452,27 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 #gameDayOff, #scriptImportDayOff { min-width: 10rem; flex: 1; }
 
 .focus-method { margin: -.35rem 0 1rem; color: var(--muted); font-weight: 700; }
-.study-line-card { display: block; margin: .75rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius-medium); background: var(--surface); box-shadow: 0 .25rem .8rem rgb(27 26 23 / 6%); }
+.study-line-card { display: block; min-width: 0; max-width: 100%; margin: .75rem 0; padding: 1rem; overflow: hidden; border: 1px solid var(--line); border-radius: .9rem; background: var(--surface); }
 .study-line-card:first-child { border-top: 1px solid var(--line); }
 .study-line-card.done { opacity: .68; text-decoration: none; }
 .study-line-card.weak { border-color: #ba3f2b; }
-.study-line-top, .study-line-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.study-line-top, .study-line-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
 .line-number { margin-right: .5rem; font-family: Georgia, serif; font-size: 1.05rem; }
 .difficulty { display: inline-block; padding: .18rem .45rem; border-radius: 999px; background: var(--surface-soft); color: var(--muted); font-size: .7rem; font-weight: 800; }
 .weak-button { min-height: 2.75rem; border-color: transparent; background: transparent; color: var(--muted); }
 .weak-button.active { color: #9a321f; background: #f3d8cf; }
-.study-prompts { display: grid; gap: .8rem; margin: .85rem 0; }
-.study-prompt { display: grid; gap: .55rem; }
-.cue-box { padding: .75rem; border-left: .25rem solid #a7a298; border-radius: .5rem; background: #ebe6da; }
-.cue-box strong { color: var(--muted); font-size: .72rem; letter-spacing: .08em; }
-.cue-box p, .study-line-card .cue-box p { margin: .2rem 0 0; color: var(--ink); font-size: .92rem; }
-.own-line, .study-line-card .own-line { margin: 0; padding: .3rem .75rem; color: var(--ink); font-family: Georgia, serif; font-size: 1rem; line-height: 1.55; white-space: pre-line; }
-.hidden-line { min-height: 4rem; padding: 1rem; border: 1px dashed var(--line); border-radius: .6rem; color: var(--muted); text-align: center; }
+.study-prompts { display: grid; gap: 1rem; margin: 1rem 0; }
+.study-prompt { display: grid; gap: .4rem; min-width: 0; }
+.dialogue-line { min-width: 0; max-width: 94%; padding: .75rem .85rem; border-radius: .75rem; }
+.dialogue-line p, .study-line-card .dialogue-line p { margin: .2rem 0 0; overflow-wrap: anywhere; color: var(--ink); font-size: 1rem; line-height: 1.5; white-space: pre-line; }
+.partner-line { justify-self: start; background: var(--surface-soft); }
+.own-dialogue { width: 92%; justify-self: end; background: #edf3f0; }
+.dialogue-speaker { display: block; color: var(--muted); font-size: .72rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.own-line, .study-line-card .own-line { margin: 0; padding: 0; color: var(--ink); font-family: Georgia, serif; font-size: 1.05rem; line-height: 1.58; white-space: pre-line; }
+.hidden-line { min-height: 3.5rem; padding: .8rem 0; color: #315447; font-weight: 800; }
 .done-control { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .55rem; padding: .35rem .65rem; border-radius: .6rem; background: #e9f7ec; color: #14532d; font-weight: 800; }
 .done-control input { width: 1.35rem; min-height: 1.35rem; margin: 0; }
 .review-heading { margin: 1.25rem 0 .6rem; color: #274f43; }
-.all-lines-panel { margin-top: 1.5rem; }
 .all-lines-filters { display: grid; grid-template-columns: 2fr 1fr; gap: .75rem; margin: 1rem 0; }
 
 @media (min-width: 721px) and (max-width: 1000px) {
@@ -496,14 +484,15 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
   .calendar-weekdays, .calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .calendar-blank, .calendar-weekdays { display: none; }
   .calendar-day { min-height: 5rem; }
-  .study-line-top, .study-line-actions { align-items: stretch; flex-direction: column; }
-  .weak-button, .study-line-actions button, .done-control { width: 100%; justify-content: center; }
+  .page-heading { align-items: stretch; flex-direction: column; }
+  .page-actions { display: grid; grid-template-columns: 1fr; }
+  .game-tabs { top: 4.35rem; margin-inline: -.25rem; }
+  .game-tabs button { padding-inline: .25rem; font-size: .78rem; }
+  .study-line-top { align-items: center; flex-direction: row; }
+  .study-line-actions { align-items: stretch; flex-direction: column; }
+  .study-line-actions button, .done-control { width: 100%; justify-content: center; }
   .all-lines-filters { grid-template-columns: 1fr; }
 }
-
-.nav-item { min-width: 0; min-height: 3.5rem; padding-inline: .3rem; display: flex; align-items: center; justify-content: center; gap: .35rem; border-color: transparent; background: transparent; font-size: .85rem; white-space: nowrap; }
-.nav-item.active { border-color: var(--ink); background: var(--ink); color: #fff; }
-.nav-icon { font-size: 1.1rem; }
 
 .confirm-dialog { width: min(30rem, calc(100% - 2rem)); padding: 0; border: 1px solid var(--line); border-radius: 1.4rem; background: var(--surface); box-shadow: var(--shadow); }
 .confirm-dialog::backdrop { background: rgb(21 21 21 / 55%); backdrop-filter: blur(.2rem); }
