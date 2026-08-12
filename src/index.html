@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=24">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -24,6 +24,7 @@
         <div class="menu-panel">
           <button id="exportBtn" type="button">Exportovať zálohu</button>
           <button id="importBtn" type="button">Importovať zálohu</button>
+          <button class="danger-text" id="resetAppBtn" type="button">Vymazať všetky dáta</button>
         </div>
       </details>
       <input id="importFile" type="file" accept="application/json,.json" hidden tabindex="-1">
@@ -112,17 +113,6 @@
           <button class="danger-text" id="deleteSelectedBtn" type="button" disabled>Odstrániť označené</button>
         </div>
       </div>
-
-      <aside class="notice hidden" id="legacyBanner" aria-labelledby="legacyHeading">
-        <div>
-          <h2 id="legacyHeading">Našiel sa starší uložený text</h2>
-          <p>Môžeš ho bezpečne pridať do novej knižnice.</p>
-        </div>
-        <div class="compact-actions">
-          <button class="primary" id="importLegacyBtn" type="button">Pridať do knižnice</button>
-          <button class="text-button" id="dismissLegacyBtn" type="button">Neskôr</button>
-        </div>
-      </aside>
 
       <p class="status-message" id="libraryMessage" role="status" aria-live="polite"></p>
 
@@ -339,6 +329,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=23"></script>
+<script type="module" src="app.js?v=24"></script>
 </body>
 </html>

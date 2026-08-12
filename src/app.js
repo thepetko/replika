@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=23';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=24';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,29 +8,29 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=23';
-import { parseText, PARSER_VERSION } from './parser.js?v=23';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=23';
-import { fingerprintScript } from './script-importer.js?v=23';
-import { readDocxParagraphs } from './docx-reader.js?v=23';
+} from './learning-engine.js?v=24';
+import { parseText, PARSER_VERSION } from './parser.js?v=24';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=24';
+import { fingerprintScript } from './script-importer.js?v=24';
+import { readDocxParagraphs } from './docx-reader.js?v=24';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=23';
+} from './scene-learning-engine.js?v=24';
 import {
+  APP_STORAGE_KEY,
+  clearAppData,
   createBackup,
   createEmptyAppData,
-  getLegacyText,
   loadAppData,
-  migrateLegacyData,
   removeGameData,
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=23';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=23';
-import { addPlanDays, buildSchedule, estimateMinutes, localDateKey, unitWeight } from './game-plan.js?v=23';
-import { enrichStudyUnitPrompts, setStudyUnitCompletion } from './game-dialogue.js?v=23';
+} from './storage.js?v=24';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=24';
+import { addPlanDays, buildSchedule, estimateMinutes, localDateKey, unitWeight } from './game-plan.js?v=24';
+import { enrichStudyUnitPrompts, setStudyUnitCompletion } from './game-dialogue.js?v=24';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -41,7 +41,7 @@ import {
   scriptProgress,
   setScriptFocus,
   setScriptSpeechLearned
-} from './script-game.js?v=23';
+} from './script-game.js?v=24';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -66,7 +66,6 @@ const hiddenGameUnits = new Set();
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
-let legacyDismissed = false;
 let scriptImportState = null;
 let selectionMode = false;
 const selectedRehearsalIds = new Set();
@@ -708,8 +707,6 @@ function renderLibrary() {
   byId('emptyLibrary').classList.toggle('hidden', sorted.length > 0 || !byId('editorPanel').classList.contains('hidden') || !byId('sceneEditorPanel').classList.contains('hidden'));
   for (const rehearsal of sorted) list.append(createRehearsalCard(rehearsal));
 
-  const legacyAvailable = Boolean(getLegacyText()) && !legacyDismissed;
-  byId('legacyBanner').classList.toggle('hidden', !legacyAvailable);
   updateTodayTime();
 }
 
@@ -1589,18 +1586,6 @@ byId('pasteSceneBtn').addEventListener('click', async () => {
   catch { setLibraryMessage('Prehliadač nepovolil vloženie. Použi príkaz Vložiť v zariadení.', true); }
 });
 
-byId('importLegacyBtn').addEventListener('click', () => {
-  const id = newId();
-  appData = migrateLegacyData(appData, globalThis.localStorage, { id, title: 'Importovaná replika', now: nowIso() });
-  appData.rehearsals = appData.rehearsals.map(normalizeRehearsal);
-  setLibraryMessage('Starší text bol pridaný do knižnice.');
-  renderLibrary();
-});
-byId('dismissLegacyBtn').addEventListener('click', () => {
-  legacyDismissed = true;
-  byId('legacyBanner').classList.add('hidden');
-});
-
 byId('exportBtn').addEventListener('click', () => {
   downloadBackup();
   byId('appMenu').removeAttribute('open');
@@ -1609,6 +1594,16 @@ byId('exportBtn').addEventListener('click', () => {
 byId('importBtn').addEventListener('click', () => {
   byId('appMenu').removeAttribute('open');
   byId('importFile').click();
+});
+byId('resetAppBtn').addEventListener('click', async () => {
+  byId('appMenu').removeAttribute('open');
+  const confirmed = await askConfirm(
+    'Vymazať všetky hry, samostatné texty, progres a nastavenia v tomto prehliadači? Túto akciu nemožno vrátiť späť bez exportovanej zálohy.',
+    'Vymazať všetko'
+  );
+  if (!confirmed) return;
+  clearAppData(globalThis.localStorage);
+  globalThis.location.reload();
 });
 byId('importFile').addEventListener('change', async event => {
   const [file] = event.target.files;
@@ -1665,7 +1660,9 @@ document.addEventListener('keydown', event => {
   }
 });
 
-window.addEventListener('pagehide', () => persist());
+window.addEventListener('pagehide', () => {
+  if (globalThis.localStorage?.getItem(APP_STORAGE_KEY) !== null) persist();
+});
 window.addEventListener('pageshow', () => tracker.start());
 
 refreshReviewStatuses();
@@ -1673,5 +1670,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' }).catch(() => {});
 }

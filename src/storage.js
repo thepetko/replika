@@ -208,6 +208,11 @@ export function saveAppData(data, storage = globalThis.localStorage, now = new D
   return next;
 }
 
+export function clearAppData(storage = globalThis.localStorage) {
+  storage?.removeItem(APP_STORAGE_KEY);
+  storage?.removeItem(LEGACY_TEXT_KEY);
+}
+
 export function getLegacyText(storage = globalThis.localStorage) {
   return storage?.getItem(LEGACY_TEXT_KEY)?.trim() ?? '';
 }

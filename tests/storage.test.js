@@ -5,6 +5,7 @@ import {
   APP_STORAGE_KEY,
   LEGACY_TEXT_KEY,
   SCHEMA_VERSION,
+  clearAppData,
   createBackup,
   createEmptyAppData,
   loadAppData,
@@ -32,6 +33,20 @@ test('prázdne úložisko vytvorí platnú schému', () => {
   assert.equal(data.schemaVersion, SCHEMA_VERSION);
   assert.deepEqual(data.rehearsals, []);
   assert.deepEqual(data.activity, { days: {} });
+});
+
+test('úplný reset odstráni aplikáciu aj pôvodný samostatný text', () => {
+  const storage = memoryStorage({
+    [APP_STORAGE_KEY]: JSON.stringify(createEmptyAppData()),
+    [LEGACY_TEXT_KEY]: 'Starý text.',
+    unrelated: 'ponechať'
+  });
+
+  clearAppData(storage);
+
+  assert.equal(storage.getItem(APP_STORAGE_KEY), null);
+  assert.equal(storage.getItem(LEGACY_TEXT_KEY), null);
+  assert.equal(storage.getItem('unrelated'), 'ponechať');
 });
 
 test('uloží a znovu načíta celú knižnicu', () => {

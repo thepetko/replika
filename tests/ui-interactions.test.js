@@ -99,3 +99,14 @@ test('HTML a modulový graf používajú rovnakú verziu vydania ako offline cac
   assert.doesNotMatch(scriptGame, /from '\.\/[^']+\.js';/u);
   assert.match(app, /updateViaCache:\s*'none'/u);
 });
+
+test('menu ponúka úplný reset a vymazané úložisko sa pri odchode neobnoví', () => {
+  const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /id="resetAppBtn"[^>]*>Vymazať všetky dáta</u);
+  assert.doesNotMatch(html, /Našiel sa starší uložený text|id="legacyBanner"/u);
+  assert.match(source, /clearAppData\(globalThis\.localStorage\)/u);
+  assert.doesNotMatch(source, /getLegacyText|migrateLegacyData|legacyDismissed/u);
+  assert.match(source, /getItem\(APP_STORAGE_KEY\) !== null[\s\S]*persist\(\)/u);
+});
