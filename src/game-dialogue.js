@@ -1,5 +1,29 @@
 function normalizedText(text = '') { return String(text).toLocaleLowerCase('sk').replace(/[^\p{L}\p{N}]+/gu, ' ').trim(); }
 
+function unitMatchKey(unit) {
+  return [unit.section, unit.sceneTitle, unit.text].map(normalizedText).join('|');
+}
+
+export function mergeStudyUnitProgress(existingUnits = [], freshUnits = []) {
+  const exact = new Map(); const byText = new Map(); const used = new Set();
+  for (const unit of existingUnits) {
+    const add = (map, key) => map.set(key, [...(map.get(key) ?? []), unit]);
+    add(exact, unitMatchKey(unit)); add(byText, normalizedText(unit.text));
+  }
+  const take = (queue = []) => queue.find(unit => !used.has(unit));
+  return freshUnits.map(fresh => {
+    const previous = take(exact.get(unitMatchKey(fresh))) ?? take(byText.get(normalizedText(fresh.text)));
+    if (!previous) return fresh;
+    used.add(previous);
+    return {
+      ...fresh,
+      id: previous.id,
+      completedAt: previous.completedAt ?? null,
+      weak: Boolean(previous.weak)
+    };
+  });
+}
+
 function scenePrompts(scene, character) {
   const entries = scene.entries ?? []; const prompts = [];
   for (const [index, entry] of entries.entries()) {
@@ -21,7 +45,7 @@ export function enrichStudyUnitPrompts(units, scenes, character) {
   const sources = new Map(scenes.map(scene => [scene.title, scenePrompts(scene, character)]));
   const cursors = new Map(); const lastMatches = new Map(); let changed = false;
   for (const unit of [...units].sort((a, b) => Number(a.order) - Number(b.order))) {
-    if (unit.dialogueReady || unit.prompts?.some(prompt => prompt.cueFull || !['VSTUP', 'POKRAČOVANIE'].includes(prompt.cueSpeaker))) continue;
+    if (unit.dialogueReady || unit.prompts?.some(prompt => !prompt.cueMissing && (prompt.cueFull || !['VSTUP', 'POKRAČOVANIE'].includes(prompt.cueSpeaker)))) continue;
     const available = sources.get(unit.sceneTitle); if (!available?.length) continue;
     const parts = String(unit.text).split(/\n+/).map(text => text.trim()).filter(Boolean); const resolved = [];
     let cursor = cursors.get(unit.sceneTitle) ?? 0;

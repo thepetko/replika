@@ -36,7 +36,7 @@ import {
 import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js';
 import { addPlanDays, buildSchedule, localDateKey, unitWeight } from './game-plan.js';
 import { createStudyUnits, mergeUnitWithNext, splitUnit } from './game-segments.js';
-import { enrichStudyUnitPrompts } from './game-dialogue.js';
+import { enrichStudyUnitPrompts, mergeStudyUnitProgress } from './game-dialogue.js';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -104,7 +104,37 @@ function normalizeRehearsal(rehearsal) {
 function normalizeGame(game) {
   const deadline = game.deadline ?? localDateKey();
   const createdAt = game.createdAt ?? nowIso();
-  return { id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '', importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt), deadline, newMaterialEnd: game.newMaterialEnd ?? addPlanDays(deadline, -3), daysOff: [...new Set(game.daysOff ?? [])].sort(), lockedPlans: game.lockedPlans ?? {}, units: (game.units ?? []).map((unit, index) => { const prompts = unit.prompts?.length ? unit.prompts : [{ cueSpeaker: unit.cueSpeaker || 'VSTUP', cue: unit.cue || 'Vlastný nástup.', cueFull: unit.cueFull || '', text: unit.text }]; return { ...unit, prompts, cueSpeaker: unit.cueSpeaker || prompts[0].cueSpeaker, cue: unit.cue || prompts[0].cue, words: unit.words || (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length, weight: unit.weight || Math.max(Number(unit.minutes || 0) * 8, (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length), difficulty: unit.difficulty || 'stredná', weak: Boolean(unit.weak), order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index, completedAt: unit.completedAt ?? null }; }), createdAt, updatedAt: game.updatedAt ?? nowIso() };
+  const units = (game.units ?? []).map((unit, index) => {
+    const sourcePrompts = unit.prompts?.length
+      ? unit.prompts
+      : [{ cueSpeaker: unit.cueSpeaker || 'VSTUP', cue: unit.cue || 'Vlastný nástup.', cueFull: unit.cueFull || '', text: unit.text }];
+    const prompts = sourcePrompts.map(prompt => {
+      const cueMissing = prompt.cueMissing || (prompt.cueSpeaker === 'VSTUP' && prompt.cue === 'Vlastný nástup.');
+      return cueMissing
+        ? { ...prompt, cueMissing: true, cueSpeaker: 'CHÝBA CUE', cue: 'Partnerova replika sa v staršom importe neuložila.' }
+        : prompt;
+    });
+    const words = unit.words || (String(unit.text).match(/[\p{L}\p{N}]+/gu) ?? []).length;
+    return {
+      ...unit,
+      prompts,
+      cueSpeaker: prompts[0].cueSpeaker,
+      cue: prompts[0].cue,
+      words,
+      weight: unit.weight || Math.max(Number(unit.minutes || 0) * 8, words),
+      difficulty: unit.difficulty || 'stredná',
+      weak: Boolean(unit.weak),
+      order: Number.isFinite(Number(unit.order)) ? Number(unit.order) : index,
+      completedAt: unit.completedAt ?? null
+    };
+  });
+  return {
+    id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '',
+    importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt),
+    deadline, newMaterialEnd: game.newMaterialEnd ?? addPlanDays(deadline, -3),
+    daysOff: [...new Set(game.daysOff ?? [])].sort(), lockedPlans: game.lockedPlans ?? {}, units,
+    createdAt, updatedAt: game.updatedAt ?? nowIso()
+  };
 }
 
 try {
@@ -314,7 +344,7 @@ function renderGameUnit(unit, game) {
   const context = element('p', 'game-unit-meta', `${place}${place ? ' · ' : ''}${unit.minutes} min`);
   const prompts = element('div', 'study-prompts');
   for (const prompt of unit.prompts ?? [{ cueSpeaker: unit.cueSpeaker, cue: unit.cue, text: unit.text }]) {
-    const pair = element('div', 'study-prompt'); const cue = element('div', 'dialogue-line partner-line'); cue.append(element('strong', 'dialogue-speaker', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cueFull || prompt.cue || 'Vlastný nástup.'));
+    const pair = element('div', 'study-prompt'); const cue = element('div', `dialogue-line partner-line${prompt.cueMissing ? ' cue-missing' : ''}`); cue.append(element('strong', 'dialogue-speaker', prompt.cueSpeaker || 'VSTUP'), element('p', '', prompt.cueFull || prompt.cue || 'Začiatok scény alebo vlastný nástup.'));
     const own = element('div', 'dialogue-line own-dialogue'); own.append(element('strong', 'dialogue-speaker', game.character));
     own.append(hiddenGameUnits.has(unit.id) ? element('div', 'hidden-line', 'Povedz repliku spamäti.') : element('p', 'own-line', prompt.text)); pair.append(cue, own); prompts.append(pair);
   }
@@ -643,6 +673,10 @@ function closeScriptImport() {
   byId('scriptImportUnits').replaceChildren();
   byId('importDaysOff').replaceChildren();
   byId('gameImportOptions').classList.add('hidden');
+  byId('repairScriptImportBtn').classList.add('hidden');
+  byId('repairScriptImportBtn').disabled = true;
+  byId('confirmScriptImportBtn').classList.add('primary');
+  byId('confirmScriptImportBtn').textContent = 'Vytvoriť hru a plán';
   byId('confirmScriptImportBtn').disabled = true;
   byId('scriptImportPanel').classList.add('hidden');
   document.querySelector('.library-tabs').classList.remove('hidden');
@@ -679,6 +713,9 @@ function renderScriptImportPreview() {
   const { document: parsedDocument, sourceTitle, fingerprint } = scriptImportState;
   if (!character) {
     preview.textContent = `Rozpoznané postavy: ${parsedDocument.speakers.join(', ')}. Vyber svoju postavu.`;
+    scriptImportState.repairGameId = null;
+    byId('repairScriptImportBtn').classList.add('hidden');
+    byId('repairScriptImportBtn').disabled = true;
     return;
   }
   scriptImportState.resolutions = { ...scriptImportState.resolutions, ...collectUnknownResolutions() };
@@ -694,9 +731,13 @@ function renderScriptImportPreview() {
     : createStudyUnits(scenes, character, newId);
   scriptImportState.draft = { resolved, scenes, recommended, units, character };
   const ownLines = scenes.reduce((count, scene) => count + scene.ownLines.length, 0);
-  const duplicate = appData.rehearsals.some(rehearsal => rehearsal.importFingerprint === fingerprint);
+  const repairGame = appData.games.find(game => game.importFingerprint === fingerprint && game.character === character);
+  const duplicate = repairGame || appData.rehearsals.some(rehearsal => rehearsal.importFingerprint === fingerprint);
+  scriptImportState.repairGameId = repairGame?.id ?? null;
   preview.append(element('strong', '', `${scenes.length} scén · ${ownLines} vlastných replík`));
-  preview.append(element('p', 'muted-copy', duplicate ? 'Tento scenár už bol pravdepodobne importovaný. Pokračovanie vytvorí ďalšie kópie.' : `Zdroj: ${sourceTitle}`));
+  preview.append(element('p', 'muted-copy', repairGame
+    ? `Našla sa existujúca hra „${repairGame.title}“. Môžeš v nej doplniť chýbajúce cue bez straty termínu a progresu.`
+    : duplicate ? 'Tento scenár už bol pravdepodobne importovaný. Pokračovanie vytvorí ďalšie kópie.' : `Zdroj: ${sourceTitle}`));
   byId('gameImportOptions').classList.remove('hidden');
   if (!byId('scriptImportGameTitle').value) byId('scriptImportGameTitle').value = sourceTitle;
   if (!byId('scriptImportDeadline').value) { const deadline = new Date(); deadline.setDate(deadline.getDate() + 30); byId('scriptImportDeadline').value = localDateKey(deadline); }
@@ -738,7 +779,12 @@ function renderScriptImportPreview() {
   } else {
     candidates.append(element('p', 'field-help', 'Nenašli sa repliky, ktoré by podľa dĺžky a štruktúry vyžadovali samostatný tréning.'));
   }
-  byId('confirmScriptImportBtn').disabled = scenes.length === 0;
+  const canImport = scenes.length > 0;
+  const repairButton = byId('repairScriptImportBtn'); const confirmButton = byId('confirmScriptImportBtn');
+  repairButton.classList.toggle('hidden', !repairGame); repairButton.disabled = !repairGame || !canImport;
+  confirmButton.classList.toggle('primary', !repairGame);
+  confirmButton.textContent = repairGame ? 'Vytvoriť samostatnú kópiu' : 'Vytvoriť hru a plán';
+  confirmButton.disabled = !canImport;
 }
 
 function renderImportDaysOff() {
@@ -792,6 +838,63 @@ function prepareScriptImport(paragraphs, sourceTitle) {
   renderScriptImportPreview();
 }
 
+function importedSceneSignature(parsed, character) {
+  return (parsed?.entries ?? [])
+    .filter(entry => entry.type === 'speech' && entry.speaker === character)
+    .map(entry => normalizedDialogueLabel(entry.text))
+    .join('|');
+}
+
+function buildImportedGameScenes(state, title, character, gameId, timestamp, existingScenes = []) {
+  const matches = new Map(); const used = new Set();
+  for (const rehearsal of existingScenes) {
+    const key = importedSceneSignature(rehearsal.parsed, character);
+    matches.set(key, [...(matches.get(key) ?? []), rehearsal]);
+  }
+  const imported = [];
+  for (const scene of state.draft.scenes) {
+    const parsed = parseScene(scene.text);
+    try { validateScene(parsed, character); } catch { continue; }
+    const match = (matches.get(importedSceneSignature(parsed, character)) ?? []).find(item => !used.has(item));
+    if (match) used.add(match);
+    imported.push(normalizeRehearsal({
+      ...(match ?? {}),
+      id: match?.id ?? newId(), type: 'scene', title: scene.title, play: title, character, scene: scene.section, gameId,
+      text: scene.text, parsed, parserVersion: SCENE_PARSER_VERSION, importFingerprint: state.fingerprint,
+      session: null, status: match?.status === 'completed' ? 'completed' : 'draft',
+      createdAt: match?.createdAt ?? timestamp, updatedAt: timestamp
+    }));
+  }
+  return imported;
+}
+
+async function repairExistingScriptImport() {
+  const state = scriptImportState; const character = byId('scriptImportCharacter').value;
+  const game = state?.repairGameId ? findGame(state.repairGameId) : null;
+  if (!state?.draft || !game || game.importFingerprint !== state.fingerprint || game.character !== character) {
+    setLibraryMessage('Existujúcu hru sa nepodarilo bezpečne priradiť. Načítaj rovnaký scenár a postavu znova.', true);
+    return;
+  }
+  const confirmed = await askConfirm(
+    'Partnerove cue a scény sa načítajú znova z pôvodného scenára. Termín, voľné dni, hotové a ťažké úseky aj štatistiky zostanú. Rozpracovaný tréning scény sa začne od začiatku.',
+    'Opraviť cue'
+  );
+  if (!confirmed) return;
+  const timestamp = nowIso();
+  const oldScenes = appData.rehearsals.filter(item => item.type === 'scene' && item.gameId === game.id);
+  const repairedScenes = buildImportedGameScenes(state, game.title, character, game.id, timestamp, oldScenes);
+  if (!repairedScenes.length) { setLibraryMessage('Oprava nenašla žiadnu použiteľnú scénu.', true); return; }
+  game.units = mergeStudyUnitProgress(game.units, state.draft.units);
+  const validUnitIds = new Set(game.units.map(unit => unit.id));
+  game.lockedPlans = Object.fromEntries(Object.entries(game.lockedPlans ?? {}).map(([date, ids]) => [date, ids.filter(id => validUnitIds.has(id))]));
+  game.updatedAt = timestamp;
+  appData.rehearsals = appData.rehearsals.filter(item => item.gameId !== game.id || item.type !== 'scene');
+  appData.rehearsals.push(...repairedScenes);
+  if (!persist(`Cue boli opravené v ${repairedScenes.length} scénach. Progres plánu zostal zachovaný.`)) return;
+  closeScriptImport();
+  openGame(game.id);
+}
+
 function confirmScriptImport() {
   const state = scriptImportState;
   const character = byId('scriptImportCharacter').value;
@@ -800,16 +903,7 @@ function confirmScriptImport() {
   if (!title || !deadline) { setLibraryMessage('Doplň názov hry a termín učenia.', true); return; }
   if (newMaterialEnd > deadline) { setLibraryMessage('Nový text musí byť naplánovaný najneskôr do finálneho termínu.', true); return; }
   const timestamp = nowIso(); const gameId = newId();
-  const imported = [];
-  for (const scene of state.draft.scenes) {
-    const parsed = parseScene(scene.text);
-    try { validateScene(parsed, character); } catch { continue; }
-    imported.push(normalizeRehearsal({
-      id: newId(), type: 'scene', title: scene.title, play: title, character, scene: scene.section, gameId,
-      text: scene.text, parsed, parserVersion: SCENE_PARSER_VERSION, importFingerprint: state.fingerprint,
-      createdAt: timestamp, updatedAt: timestamp
-    }));
-  }
+  const imported = buildImportedGameScenes(state, title, character, gameId, timestamp);
   const selected = new Set([...document.querySelectorAll('#scriptImportCandidates input[type="checkbox"]:checked')].map(input => Number(input.value)));
   const selectedCandidates = state.draft.recommended.filter(candidate => selected.has(candidate.sourceIndex));
   for (const [index, candidate] of selectedCandidates.entries()) {
@@ -1354,6 +1448,7 @@ byId('scriptImportCharacter').addEventListener('change', () => {
   renderScriptImportPreview();
 });
 byId('addImportDayOffBtn').addEventListener('click', () => { const date = byId('scriptImportDayOff').value; if (!scriptImportState || !date || scriptImportState.daysOff.includes(date)) return; scriptImportState.daysOff.push(date); scriptImportState.daysOff.sort(); byId('scriptImportDayOff').value = ''; renderImportDaysOff(); });
+byId('repairScriptImportBtn').addEventListener('click', repairExistingScriptImport);
 byId('confirmScriptImportBtn').addEventListener('click', confirmScriptImport);
 
 document.addEventListener('click', event => {
