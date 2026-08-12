@@ -29,6 +29,7 @@ import {
   getLegacyText,
   loadAppData,
   migrateLegacyData,
+  removeGameData,
   replaceFromBackup,
   saveAppData,
   validateBackup
@@ -316,7 +317,19 @@ function renderGames() {
     const percent = game.units.length ? Math.round(done / game.units.length * 100) : 0;
     const top = element('div', 'card-topline'); const group = element('div', 'card-title-group');
     group.append(element('h2', '', game.title), element('p', 'card-meta', `${game.character} · ${gameScenes(game).length} scén · termín ${formatPlanDate(game.deadline)}`));
-    top.append(group, element('span', 'status-chip status-dark', `${percent} %`));
+    const tools = element('div', 'game-card-tools');
+    const menu = element('details', 'card-menu game-card-menu');
+    const summary = element('summary', '', '•••'); summary.setAttribute('aria-label', `Možnosti hry ${game.title}`);
+    const menuContent = element('div', 'card-menu-panel');
+    const importButton = element('button', '', 'Importovať scenár'); importButton.type = 'button';
+    importButton.addEventListener('click', () => { menu.removeAttribute('open'); openScriptImport(); });
+    const exportButton = element('button', '', 'Exportovať zálohu'); exportButton.type = 'button';
+    exportButton.addEventListener('click', () => { menu.removeAttribute('open'); downloadBackup(); setGamesMessage('Záloha všetkých dát bola pripravená na stiahnutie.'); });
+    const deleteButton = element('button', 'danger-text', 'Odstrániť hru'); deleteButton.type = 'button';
+    deleteButton.addEventListener('click', () => { menu.removeAttribute('open'); deleteGame(game.id); });
+    menuContent.append(importButton, exportButton, deleteButton); menu.append(summary, menuContent);
+    tools.append(element('span', 'status-chip status-dark', `${percent} %`), menu);
+    top.append(group, tools);
     const track = element('div', 'mini-progress'); const bar = element('span'); bar.style.width = `${percent}%`; track.append(bar);
     const open = element('button', 'primary', 'Otvoriť hru'); open.type = 'button'; open.addEventListener('click', () => openGame(game.id));
     card.append(top, element('div', 'card-info', `${done} z ${game.units.length} úsekov hotových`), track, open); list.append(card);
@@ -324,6 +337,19 @@ function renderGames() {
 }
 
 function showGames() { currentGameId = null; currentRehearsalId = null; showView('games'); renderGames(); }
+
+async function deleteGame(id) {
+  const game = findGame(id); if (!game) return;
+  const confirmed = await askConfirm(
+    `Odstrániť hru „${game.title}“? Vymaže sa jej plán, progres a ${gameScenes(game).length} priradených scén. Samostatné texty a celkový historický čas zostanú. Hru nebude možné obnoviť bez exportovanej zálohy.`,
+    'Odstrániť hru'
+  );
+  if (!confirmed) return;
+  appData = removeGameData(appData, id);
+  if (!persist()) return;
+  setGamesMessage(`Hra „${game.title}“ bola odstránená.`);
+  renderGames();
+}
 
 function renderPlanChange() {
   const render = () => renderGameDetail();

@@ -9,6 +9,7 @@ import {
   createEmptyAppData,
   loadAppData,
   migrateLegacyData,
+  removeGameData,
   replaceFromBackup,
   saveAppData,
   validateAppData,
@@ -163,4 +164,23 @@ test('schéma 5 bezpečne doplní konfiguráciu dynamického plánu', () => {
   old.games.push({ id: 'g', title: 'Stará hra', character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: 'u', text: 'Text.', minutes: 5 }] });
   const migrated = validateAppData(old);
   assert.equal(migrated.schemaVersion, SCHEMA_VERSION); assert.equal(migrated.games[0].newMaterialEnd, '2026-08-24'); assert.deepEqual(migrated.games[0].lockedPlans, {});
+});
+
+test('odstránenie hry vymaže iba jej scény a zachová ostatné dáta', () => {
+  const data = createEmptyAppData();
+  const game = id => ({ id, title: id, character: 'A', deadline: '2026-08-27', daysOff: [], units: [{ id: `${id}-unit`, text: 'Text.', minutes: 5 }] });
+  const scene = (id, gameId) => ({ id, gameId, type: 'scene', title: id, text: 'A: Text.', character: 'A', parsed: { entries: [{ type: 'speech', speaker: 'A', text: 'Text.' }] } });
+  data.games.push(game('game-1'), game('game-2'));
+  data.rehearsals.push(
+    scene('scene-1', 'game-1'),
+    scene('scene-2', 'game-2'),
+    { id: 'standalone', title: 'Samostatná replika', text: 'Text.', parsed: null }
+  );
+  data.activity.days['2026-08-12'] = { totalSeconds: 90, byRehearsal: { 'scene-1': 30, 'scene-2': 40, standalone: 20 } };
+
+  const next = removeGameData(data, 'game-1');
+
+  assert.deepEqual(next.games.map(item => item.id), ['game-2']);
+  assert.deepEqual(next.rehearsals.map(item => item.id), ['scene-2', 'standalone']);
+  assert.deepEqual(next.activity.days['2026-08-12'], { totalSeconds: 90, byRehearsal: { 'scene-2': 40, standalone: 20 } });
 });

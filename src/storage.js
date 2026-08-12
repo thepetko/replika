@@ -220,6 +220,17 @@ export function replaceFromBackup(backup, storage = globalThis.localStorage, now
   return saveAppData(validated.data, storage, now);
 }
 
+export function removeGameData(data, gameId) {
+  const next = validateAppData(data);
+  const sceneIds = new Set(next.rehearsals.filter(item => item.gameId === gameId).map(item => item.id));
+  next.games = next.games.filter(game => game.id !== gameId);
+  next.rehearsals = next.rehearsals.filter(item => item.gameId !== gameId);
+  for (const day of Object.values(next.activity.days)) {
+    for (const id of sceneIds) delete day.byRehearsal?.[id];
+  }
+  return next;
+}
+
 // Dočasná kompatibilita pre staršie integrácie.
 export function loadText(storage = globalThis.localStorage) {
   return getLegacyText(storage);
