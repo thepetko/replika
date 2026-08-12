@@ -8,7 +8,8 @@ import {
   scriptDailyPace,
   scriptProgress,
   setScriptFocus,
-  setScriptSpeechLearned
+  setScriptSpeechLearned,
+  setScriptSpeechLearnedById
 } from '../src/script-game.js';
 
 const paragraphs = [
@@ -121,4 +122,16 @@ test('tempo rešpektuje deadline, voľné dni a progres mimo cieľa', () => {
   assert.ok(after.remainingMinutes < before.remainingMinutes);
   assert.ok(after.requiredMinutes <= before.requiredMinutes);
   assert.deepEqual(scriptProgress(game), { learned: 1, total: 3, percent: 33 });
+});
+
+test('označenie podľa ID zapisuje do aktuálnej kópie dát aj po automatickom uložení', () => {
+  const staleGame = makeGame();
+  const currentGames = structuredClone([staleGame]);
+  const speechId = staleGame.script.speeches.find(speech => speech.speaker === 'TULÁK').id;
+
+  const changed = setScriptSpeechLearnedById(currentGames, staleGame.id, speechId, '2026-08-12T09:00:00.000Z');
+
+  assert.equal(changed, true);
+  assert.equal(currentGames[0].script.speeches.find(speech => speech.id === speechId).learnedAt, '2026-08-12T09:00:00.000Z');
+  assert.equal(staleGame.script.speeches.find(speech => speech.id === speechId).learnedAt, null);
 });

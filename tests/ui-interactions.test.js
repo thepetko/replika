@@ -88,6 +88,7 @@ test('import novej hry ponúka iba DOCX a nevytvára učebné úseky', () => {
 test('checkbox scenára má samostatný change handler a karta ho neprepína', () => {
   const source = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
   assert.match(source, /checkbox\.addEventListener\('change'/u);
+  assert.match(source, /setScriptSpeechLearnedById\(appData\.games, game\.id, speech\.id/u);
   assert.doesNotMatch(source, /row\.addEventListener\('click'.*setScriptSpeechLearned/su);
 });
 

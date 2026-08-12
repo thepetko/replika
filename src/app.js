@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=25';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=26';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=25';
-import { parseText, PARSER_VERSION } from './parser.js?v=25';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=25';
-import { fingerprintScript } from './script-importer.js?v=25';
-import { readDocxParagraphs } from './docx-reader.js?v=25';
+} from './learning-engine.js?v=26';
+import { parseText, PARSER_VERSION } from './parser.js?v=26';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=26';
+import { fingerprintScript } from './script-importer.js?v=26';
+import { readDocxParagraphs } from './docx-reader.js?v=26';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=25';
+} from './scene-learning-engine.js?v=26';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,9 +27,9 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=25';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=25';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=25';
+} from './storage.js?v=26';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=26';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=26';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -39,8 +39,8 @@ import {
   scriptOwnSpeeches,
   scriptProgress,
   setScriptFocus,
-  setScriptSpeechLearned
-} from './script-game.js?v=25';
+  setScriptSpeechLearnedById
+} from './script-game.js?v=26';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -360,9 +360,15 @@ function renderScriptSpeech(game, speech, targetIds) {
     checkbox.className = 'script-known-checkbox'; checkbox.setAttribute('aria-label', `Viem repliku v časti ${scriptSectionTitle(game, speech.sectionId)}`);
     const knownText = element('span', 'script-known-label', 'Viem');
     checkbox.addEventListener('change', () => {
-      const previous = speech.learnedAt;
-      setScriptSpeechLearned(game, speech.id, checkbox.checked ? nowIso() : null);
-      if (!persist()) { speech.learnedAt = previous; checkbox.checked = Boolean(previous); return; }
+      const currentSpeech = findGame(game.id)?.script.speeches.find(item => item.id === speech.id);
+      const previous = currentSpeech?.learnedAt ?? null;
+      if (!setScriptSpeechLearnedById(appData.games, game.id, speech.id, checkbox.checked ? nowIso() : null)) {
+        checkbox.checked = Boolean(previous); return;
+      }
+      if (!persist()) {
+        setScriptSpeechLearnedById(appData.games, game.id, speech.id, previous);
+        checkbox.checked = Boolean(previous); return;
+      }
       row.classList.add(checkbox.checked ? 'is-learning-complete' : 'is-learning-restored');
       knownText.textContent = checkbox.checked ? 'Hotovo' : 'Viem';
       setTimeout(() => { if (currentView === 'scriptGame' && currentGameId === game.id) renderScriptGame(true); }, globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
@@ -1438,5 +1444,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=25', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=26', { updateViaCache: 'none' }).catch(() => {});
 }

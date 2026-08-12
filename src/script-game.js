@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=25';
+import { availableDates, estimateMinutes } from './game-plan.js?v=26';
 
 const SPEAKER_LINE = /^\s*([\p{Lu}\d][\p{Lu}\p{M}\d .,'’\-–—/]{0,50}?)(?:\s*(\([^)]{0,200}\)))?\s*:\s*(.*)$/u;
 const STRUCTURE_HEADING = /^(?:(?:prvé|prvý|druhé|druhý|tretie|tretí|štvrté|štvrtý|piate|piaty|šieste|šiesty|siedme|siedmy|ôsme|ôsmy|deviate|deviaty|desiate|desiaty|\d+\.?|[IVXLCDM]+\.?)\s+)?(?:dejstvo|obraz)(?:\s*[:.\-–—].*)?$|^(?:sc[eé]na|výstup)\s+(?:\d+|[IVXLCDM]+)(?:\s*[:.\-–—].*)?$|^epil[oó]g\s*:?$/iu;
@@ -208,6 +208,11 @@ export function setScriptSpeechLearned(game, speechId, learnedAt = new Date().to
   speech.learnedAt = learnedAt || null;
   game.updatedAt = new Date().toISOString();
   return true;
+}
+
+export function setScriptSpeechLearnedById(games, gameId, speechId, learnedAt = new Date().toISOString()) {
+  const game = games?.find(item => item.id === gameId);
+  return setScriptSpeechLearned(game, speechId, learnedAt);
 }
 
 export function setScriptFocus(game, sectionId, today, changedAt = new Date().toISOString()) {
