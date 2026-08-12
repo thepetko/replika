@@ -550,9 +550,15 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .script-mask:hover { border: 0; background: #d2dfd9; }
 .script-speech-note { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--stone); }
 .script-add-note { min-height: 2.75rem; padding-inline: 0; color: var(--muted); font-size: .9rem; }
+.script-note-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .script-note-label { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.script-note-heading .script-note-label { margin-bottom: 0; }
+.script-note-edit { min-height: 2.5rem; padding: .25rem 0 .25rem .75rem; color: var(--muted); font-size: .82rem; }
+.script-note-copy { margin: .25rem 0 0; white-space: pre-wrap; color: var(--ink); line-height: 1.5; }
 .script-note-input { display: block; width: 100%; min-height: 4.5rem; max-height: 12rem; resize: vertical; border-color: var(--stone); background: var(--surface); font: inherit; line-height: 1.5; }
 .script-note-input::placeholder { color: #76716a; }
+.script-note-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .65rem; }
+.script-note-actions .primary { min-height: 2.75rem; padding: .65rem 1rem; }
 .script-note-status { display: block; min-height: 1rem; margin-top: .25rem; color: var(--muted); font-size: .72rem; }
 .script-note-status.error { color: var(--danger); }
 .script-speech-controls { display: flex; justify-content: flex-end; align-items: center; gap: .6rem; margin-top: .65rem; }
