@@ -1,7 +1,12 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=28';
+import { availableDates, estimateMinutes } from './game-plan.js?v=29';
 
-const SPEAKER_LINE = /^\s*([\p{Lu}\d][\p{Lu}\p{M}\d .,'’\-–—/]{0,50}?)(?:\s*(\([^)]{0,200}\)))?\s*:\s*(.*)$/u;
+const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
+const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
+const TABBED_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:[ \u00a0]*(\([^)]{0,200}\)))?\.?[ \u00a0]*\t+\s*(.*)$`, 'u');
+const DIRECTED_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})\s+(\([^)]{0,200}\))\.?\s*(.*)$`, 'u');
+const UNMARKED_SPEAKER_LINE = /^\s*((?:[\p{Lu}\p{M}\d][\p{Lu}\p{M}\d'’\-]*)(?:\s+[\p{Lu}\p{M}\d][\p{Lu}\p{M}\d'’\-]*)*)\s+(?=\p{Lu}\p{Ll})(.*)$/u;
 const STRUCTURE_HEADING = /^(?:(?:prvé|prvý|druhé|druhý|tretie|tretí|štvrté|štvrtý|piate|piaty|šieste|šiesty|siedme|siedmy|ôsme|ôsmy|deviate|deviaty|desiate|desiaty|\d+\.?|[IVXLCDM]+\.?)\s+)?(?:dejstvo|obraz)(?:\s*[:.\-–—].*)?$|^(?:sc[eé]na|výstup)\s+(?:\d+|[IVXLCDM]+)(?:\s*[:.\-–—].*)?$|^epil[oó]g\s*:?$/iu;
+const NON_SPEAKER_LABEL = /^(?:obsadenie|postavy|osoby|účinkujú|účinkujúci|koniec)$/iu;
 
 function cleanText(value) {
   return String(value ?? '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').trim();
@@ -9,6 +14,32 @@ function cleanText(value) {
 
 function normalizeSpeaker(value) {
   return cleanText(value).replace(/\s+/g, ' ').toLocaleUpperCase('sk');
+}
+
+function plausibleSpeaker(name) {
+  const value = cleanText(name);
+  return Boolean(value)
+    && !NON_SPEAKER_LABEL.test(value)
+    && !/^[IVXLCDM\d]+$/u.test(value)
+    && value === value.toLocaleUpperCase('sk');
+}
+
+function speakerKey(name) {
+  return normalizeSpeaker(name).normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]/gu, '');
+}
+
+function matchSpeakerLine(rawText) {
+  const normalized = String(rawText ?? '').replace(/\u00a0/g, ' ');
+  const clean = cleanText(normalized);
+  const match = normalized.match(TABBED_SPEAKER_LINE)
+    ?? clean.match(EXPLICIT_SPEAKER_LINE)
+    ?? clean.match(DIRECTED_SPEAKER_LINE);
+  if (match && plausibleSpeaker(match[1])) {
+    return { speaker: match[1], direction: match[2] ?? '', content: match[3] ?? '' };
+  }
+  const unmarked = clean.match(UNMARKED_SPEAKER_LINE);
+  if (!unmarked || speakerKey(unmarked[1]).length < 2 || !plausibleSpeaker(unmarked[1])) return null;
+  return { speaker: unmarked[1], direction: '', content: unmarked[2] };
 }
 
 function looksLikeHeading(text, style = '') {
@@ -47,6 +78,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
   const sections = [{ id: 'section-start', title: 'Začiatok', headingEntryId: null, order: 0 }];
   const speeches = [];
   const speakers = [];
+  const speakerAliases = new Map();
   let section = sections[0];
   let activeSpeech = null;
 
@@ -57,7 +89,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
     const id = `entry-${sourceIndex}`;
     const style = String(paragraph?.style ?? '');
     const forced = resolutionFor(resolutions, id);
-    const match = text.match(SPEAKER_LINE);
+    const match = matchSpeakerLine(rawText);
     let type = forced?.type;
     let speaker = forced?.speaker ? normalizeSpeaker(forced.speaker) : '';
     let content = text;
@@ -66,8 +98,8 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
     if (!type) {
       if (match) {
         type = 'speech';
-        speaker = normalizeSpeaker(match[1]);
-        content = cleanText([match[2], match[3]].filter(Boolean).join(' '));
+        speaker = normalizeSpeaker(match.speaker);
+        content = cleanText([match.direction, match.content].filter(Boolean).join(' '));
       } else if (looksLikeHeading(text, style)) {
         type = 'heading';
       } else if (looksLikeDirection(text)) {
@@ -81,12 +113,19 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
         ambiguous = true;
       }
     } else if (type === 'speech') {
-      if (match && !speaker) speaker = normalizeSpeaker(match[1]);
-      if (match) content = cleanText([match[2], match[3]].filter(Boolean).join(' '));
+      if (match && !speaker) speaker = normalizeSpeaker(match.speaker);
+      if (match) content = cleanText([match.direction, match.content].filter(Boolean).join(' '));
       if (!speaker) {
         type = 'unknown';
         ambiguous = true;
       }
+    }
+
+    if (type === 'speech' && speaker) {
+      const key = speakerKey(speaker);
+      const canonical = speakerAliases.get(key);
+      if (canonical) speaker = canonical;
+      else speakerAliases.set(key, speaker);
     }
 
     if (type === 'heading' && createsSection(text, style)) {

@@ -79,6 +79,52 @@ test('replika s didaskáliou pri mene sa rozpozná a opis scény nevytvorí falo
   assert.deepEqual(script.sections.map(section => section.title), ['Začiatok', 'DRUHÉ DEJSTVO', 'Tretie dejstvo', 'Epilóg']);
 });
 
+test('rozpozná bodku, samostatné meno, tabulátor aj meno s didaskáliou', () => {
+  const script = parseScriptDocument([
+    { text: 'I.', style: '' },
+    { text: 'PERINBABA. To je zaujímavé.', style: '' },
+    { text: 'ZUBATÁ.', style: '' },
+    { text: 'Nestarnem, šéfka.', style: '' },
+    { text: 'JAKUB\t(Dá Zubatej zaucho.)', style: '' },
+    { text: 'PERINBABA (smeje sa) Chachacha!', style: '' },
+    { text: 'KOMEDIANTKA Vraj chudobný nástroj!', style: '' }
+  ]);
+
+  assert.deepEqual(script.speakers, ['PERINBABA', 'ZUBATÁ', 'JAKUB', 'KOMEDIANTKA']);
+  assert.equal(script.entries[0].type, 'heading');
+  assert.equal(script.speeches[0].text, 'To je zaujímavé.');
+  assert.equal(script.speeches[1].text, 'Nestarnem, šéfka.');
+  assert.equal(script.speeches[2].text, '(Dá Zubatej zaucho.)');
+  assert.equal(script.speeches[3].text, '(smeje sa) Chachacha!');
+  assert.equal(script.speeches[4].text, 'Vraj chudobný nástroj!');
+});
+
+test('zoznam obsadenia nevytvorí postavu s názvom OBSADENIE', () => {
+  const script = parseScriptDocument([
+    { text: 'OBSADENIE:', style: '' },
+    { text: 'Perinbaba\tAngelika H.', style: '' },
+    { text: 'I.', style: '' },
+    { text: 'PERINBABA. Začíname.', style: '' }
+  ]);
+
+  assert.deepEqual(script.speakers, ['PERINBABA']);
+});
+
+test('zjednotí drobné rozdiely v diakritike a medzerách v mene postavy', () => {
+  const script = parseScriptDocument([
+    { text: 'ZUBATÁ. Prvá replika.', style: '' },
+    { text: 'ZUBATA. Druhá replika.', style: '' },
+    { text: 'ANIČKA. Prvá replika.', style: '' },
+    { text: 'AN IČKA. Druhá replika.', style: '' },
+    { text: 'A toto nie je nová postava.', style: '' },
+    { text: 'KONIEC\t', style: '' }
+  ]);
+
+  assert.deepEqual(script.speakers, ['ZUBATÁ', 'ANIČKA']);
+  assert.equal(script.speeches.filter(speech => speech.speaker === 'ZUBATÁ').length, 2);
+  assert.equal(script.speeches.filter(speech => speech.speaker === 'ANIČKA').length, 2);
+});
+
 test('dnešný cieľ je chronologický, súvislý a po odškrtnutí sa sám nedoplní', () => {
   const game = makeGame();
   const target = ensureDailyTarget(game, '2026-08-12', '2026-08-12T08:00:00.000Z');

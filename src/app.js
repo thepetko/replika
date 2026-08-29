@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=28';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=29';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=28';
-import { parseText, PARSER_VERSION } from './parser.js?v=28';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=28';
-import { fingerprintScript } from './script-importer.js?v=28';
-import { readDocxParagraphs } from './docx-reader.js?v=28';
+} from './learning-engine.js?v=29';
+import { parseText, PARSER_VERSION } from './parser.js?v=29';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=29';
+import { fingerprintScript } from './script-importer.js?v=29';
+import { readDocxParagraphs } from './docx-reader.js?v=29';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=28';
+} from './scene-learning-engine.js?v=29';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,9 +27,9 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=28';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=28';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=28';
+} from './storage.js?v=29';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=29';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=29';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -41,7 +41,7 @@ import {
   setScriptFocus,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=28';
+} from './script-game.js?v=29';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -1508,5 +1508,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=28', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=29', { updateViaCache: 'none' }).catch(() => {});
 }
