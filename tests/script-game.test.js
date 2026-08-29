@@ -43,7 +43,7 @@ test('import zachová každý odsek presne raz a v pôvodnom poradí', () => {
   assert.deepEqual(script.entries.map(entry => entry.rawText), paragraphs.map(item => item.text));
   assert.equal(new Set(script.entries.map(entry => entry.id)).size, paragraphs.length);
   assert.equal(script.entries[6].type, 'continuation');
-  assert.equal(script.entries[6].ambiguous, true);
+  assert.equal(script.entries[6].ambiguous, false);
 });
 
 test('pokračovanie odseku zostane v jednej samostatnej replike postavy', () => {
@@ -123,6 +123,81 @@ test('zjednotí drobné rozdiely v diakritike a medzerách v mene postavy', () =
   assert.deepEqual(script.speakers, ['ZUBATÁ', 'ANIČKA']);
   assert.equal(script.speeches.filter(speech => speech.speaker === 'ZUBATÁ').length, 2);
   assert.equal(script.speeches.filter(speech => speech.speaker === 'ANIČKA').length, 2);
+});
+
+test('rozpozná repliku aj s ručným zalomením riadka z Wordu', () => {
+  const script = parseScriptDocument([
+    { text: 'PERINBABA. Nikto lavínu neprežil - a tento mládenček ju\nprežil?', style: '' },
+    { text: 'ZUBATÁ. Oháňam sa kosou s rovnakou vervou\nako predtým.', style: '' }
+  ]);
+
+  assert.deepEqual(script.speakers, ['PERINBABA', 'ZUBATÁ']);
+  assert.equal(script.speeches[0].text, 'Nikto lavínu neprežil - a tento mládenček ju prežil?');
+  assert.equal(script.speeches[1].text, 'Oháňam sa kosou s rovnakou vervou ako predtým.');
+});
+
+test('isté pokračovanie repliky nezobrazuje ako nejasný blok', () => {
+  const script = parseScriptDocument([
+    { text: 'PERINBABA. Pozri sa!', style: '' },
+    { text: '(Ukazuje mu, ako sa hrá na organe.)', style: '' },
+    { text: 'Toto sú blesky.', style: '' },
+    { text: 'A toto hromy.', style: '' }
+  ]);
+
+  assert.equal(script.speeches[0].text, 'Pozri sa!\nToto sú blesky.\nA toto hromy.');
+  assert.equal(script.entries[1].type, 'direction');
+  assert.equal(script.entries[2].type, 'continuation');
+  assert.equal(script.entries[2].ambiguous, false);
+  assert.equal(script.entries[3].ambiguous, false);
+});
+
+test('známu postavu rozpozná bez oddeľovača aj s rozdelenou didaskáliou', () => {
+  const script = parseScriptDocument([
+    { text: 'JAKUB. Prvá replika.', style: '' },
+    { text: 'JAKUB A prečo nie? Je to paráda.', style: '' },
+    { text: 'ZUBATÁ. Prvá replika.', style: '' },
+    { text: 'ZUBATÁ (preoblečená za komedianta sa vynorí', style: '' },
+    { text: 'v ústrety) Vitajte, komedianti!', style: '' }
+  ]);
+
+  assert.equal(script.speeches[1].speaker, 'JAKUB');
+  assert.equal(script.speeches[1].text, 'A prečo nie? Je to paráda.');
+  assert.equal(script.speeches[3].speaker, 'ZUBATÁ');
+  assert.equal(script.speeches[3].text, '(preoblečená za komedianta sa vynorí\nv ústrety) Vitajte, komedianti!');
+  assert.equal(script.entries[4].ambiguous, false);
+});
+
+test('titulné údaje pred prvým obrazom nežiada ručne zaraďovať', () => {
+  const script = parseScriptDocument([
+    { text: 'Ľubomír Feldek', style: '' },
+    { text: 'OBSADENIE:', style: '' },
+    { text: 'Perinbaba\tAngelika H.', style: '' },
+    { text: 'I.', style: '' },
+    { text: 'Hudba, svetlo, Perinbaba je už na scéne.', style: '' },
+    { text: 'Neoznačený blok v tele scenára', style: '' }
+  ]);
+
+  assert.equal(script.entries[0].ambiguous, false);
+  assert.equal(script.entries[1].ambiguous, false);
+  assert.equal(script.entries[2].ambiguous, false);
+  assert.equal(script.entries[4].type, 'direction');
+  assert.equal(script.entries[4].ambiguous, false);
+  assert.equal(script.entries[5].ambiguous, true);
+});
+
+test('skupinové meno s malým a priradí známej postave alebo scénickej poznámke', () => {
+  const script = parseScriptDocument([
+    { text: 'MACOCHA A DORA. Spievajú spolu.', style: '' },
+    { text: 'MACOCHA a DORA (vyliezajú z orchestriska a spievajú).', style: '' },
+    { text: 'Ach, Perinbaba!', style: '' },
+    { text: 'JAKUB. Prichádza.', style: '' },
+    { text: 'JAKUB a ANIČKA (vo svadobnom).', style: '' }
+  ]);
+
+  assert.equal(script.speeches[1].speaker, 'MACOCHA A DORA');
+  assert.equal(script.speeches[1].text, '(vyliezajú z orchestriska a spievajú).\nAch, Perinbaba!');
+  assert.equal(script.entries[4].type, 'direction');
+  assert.equal(script.entries[4].ambiguous, false);
 });
 
 test('dnešný cieľ je chronologický, súvislý a po odškrtnutí sa sám nedoplní', () => {

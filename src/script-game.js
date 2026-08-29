@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=29';
+import { availableDates, estimateMinutes } from './game-plan.js?v=30';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
@@ -9,7 +9,7 @@ const STRUCTURE_HEADING = /^(?:(?:prvé|prvý|druhé|druhý|tretie|tretí|štvrt
 const NON_SPEAKER_LABEL = /^(?:obsadenie|postavy|osoby|účinkujú|účinkujúci|koniec)$/iu;
 
 function cleanText(value) {
-  return String(value ?? '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').trim();
+  return String(value ?? '').replace(/\u00a0/g, ' ').replace(/\s+/gu, ' ').trim();
 }
 
 function normalizeSpeaker(value) {
@@ -42,6 +42,18 @@ function matchSpeakerLine(rawText) {
   return { speaker: unmarked[1], direction: '', content: unmarked[2] };
 }
 
+function matchKnownSpeakerLine(text, speakers) {
+  const names = [...speakers].sort((a, b) => b.length - a.length);
+  const upperText = text.toLocaleUpperCase('sk');
+  for (const speaker of names) {
+    if (!upperText.startsWith(speaker)) continue;
+    const content = text.slice(speaker.length).trimStart();
+    if (!content || /^a(?:\s|$)/u.test(content) || !/^[\p{Lu}(]/u.test(content)) continue;
+    return { speaker, direction: '', content };
+  }
+  return null;
+}
+
 function looksLikeHeading(text, style = '') {
   return (/(?:^|\s)(?:heading|nadpis|title)(?:\s|$)/iu.test(style) && text.length <= 120)
     || STRUCTURE_HEADING.test(text)
@@ -53,9 +65,12 @@ function createsSection(text, style = '') {
 }
 
 function looksLikeDirection(text) {
-  return /^(?:\(|\[|<).*(?:\)|\]|>)$/u.test(text)
+  return /^(?:\(|\[|<).*(?:\)|\]|>)\.?$/u.test(text)
     || /^(?:poznámka|scénická poznámka|didaskália)\s*:/iu.test(text)
     || /^sc[eé]na predstavuje\b/iu.test(text)
+    || /^hudba,?\s+svetlo\b/iu.test(text)
+    || /^[\p{Lu}\p{M}]+(?:\s+[\p{Lu}\p{M}]+)*\s+a\s+[\p{Lu}\p{M}]+(?:\s+[\p{Lu}\p{M}]+)*\s+\([^)]*\)\.?$/u.test(text)
+    || /^(?:vedie|odvádza|prichádzajú|všetci odchádzajú)\b/iu.test(text)
     || ((text.match(/\b(?:vybeh\w*|vstúp\w*|odchádz\w*|vrhne\w*|vyrúti\w*|zažen\w*|ťahá|vlečie|spadne|vstane)\b/giu) ?? []).length >= 2);
 }
 
@@ -81,6 +96,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
   const speakerAliases = new Map();
   let section = sections[0];
   let activeSpeech = null;
+  let bodyStarted = false;
 
   paragraphs.forEach((paragraph, sourceIndex) => {
     const rawText = String(paragraph?.text ?? '');
@@ -89,7 +105,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
     const id = `entry-${sourceIndex}`;
     const style = String(paragraph?.style ?? '');
     const forced = resolutionFor(resolutions, id);
-    const match = matchSpeakerLine(rawText);
+    const match = matchSpeakerLine(rawText) ?? matchKnownSpeakerLine(text, speakers);
     let type = forced?.type;
     let speaker = forced?.speaker ? normalizeSpeaker(forced.speaker) : '';
     let content = text;
@@ -107,10 +123,9 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
       } else if (activeSpeech) {
         type = 'continuation';
         speaker = activeSpeech.speaker;
-        ambiguous = true;
       } else {
         type = 'unknown';
-        ambiguous = true;
+        ambiguous = bodyStarted;
       }
     } else if (type === 'speech') {
       if (match && !speaker) speaker = normalizeSpeaker(match.speaker);
@@ -132,6 +147,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
       section = { id: `section-${sourceIndex}`, title: text, headingEntryId: id, order: sections.length };
       sections.push(section);
     }
+    if (type === 'heading' && (createsSection(text, style) || /^(?:[IVXLCDM]+|\d+)\.$/u.test(text))) bodyStarted = true;
 
     if (type === 'speech') {
       activeSpeech = {
@@ -146,7 +162,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
       };
       speeches.push(activeSpeech);
       if (!speakers.includes(speaker)) speakers.push(speaker);
-    } else if (type !== 'continuation') {
+    } else if (type === 'heading' || type === 'unknown') {
       activeSpeech = null;
     }
 
