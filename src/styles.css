@@ -878,6 +878,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); font-weight: 700; }
 .memorizer-show-label select { min-height: 2.5rem; padding: .2rem .3rem; border: 0; box-shadow: none; cursor: pointer; }
 .memorizer-actions button { min-height: 2.7rem; padding: .45rem .8rem; font-weight: 600; }
+.memorizer-actions .memorizer-unavailable { visibility: hidden; }
 .memorizer-instruction { margin: 1.1rem 0 2rem; color: var(--muted); }
 .memorizer-lines { padding: 1.25rem; border-radius: var(--radius-medium); background: var(--paper); color: #684c21; font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.7; }
 .memorizer-lines.compact { padding: .25rem 0; background: transparent; }

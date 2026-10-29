@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=33">
+  <link rel="stylesheet" href="styles.css?v=34">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -96,7 +96,7 @@
               <div class="memorizer-switch" role="group" aria-label="Rozostupy"><button id="memorizerPaddedBtn" class="active" type="button" aria-pressed="true">S rozostupmi</button><button id="memorizerCompactBtn" type="button" aria-pressed="false">Kompaktne</button></div>
               <label class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen alebo slov"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
             </div>
-            <div class="memorizer-actions"><button id="memorizerHideAllBtn" class="text-button hidden" type="button">Skryť všetko</button><button id="memorizerRevealAllBtn" class="secondary" type="button">Odkryť všetko</button><button id="memorizerEditBtn" class="text-button" type="button">Upraviť</button></div>
+            <div class="memorizer-actions"><button id="memorizerHideAllBtn" class="text-button memorizer-unavailable" type="button" disabled>Skryť všetko</button><button id="memorizerRevealAllBtn" class="secondary" type="button">Odkryť všetko</button><button id="memorizerEditBtn" class="text-button" type="button">Upraviť</button></div>
           </div>
           <p class="memorizer-instruction">Povedz repliku spamäti. Ťukni na slovo alebo riadok a skontroluj sa.</p>
           <div id="memorizerLines" class="memorizer-lines" aria-label="Text na precvičovanie"></div>
@@ -345,6 +345,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=33"></script>
+<script type="module" src="app.js?v=34"></script>
 </body>
 </html>

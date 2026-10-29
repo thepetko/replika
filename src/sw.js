@@ -1,4 +1,4 @@
-const RELEASE = '33';
+const RELEASE = '34';
 const CACHE_NAME = `replika-shell-v${RELEASE}`;
 const versioned = path => `${path}?v=${RELEASE}`;
 const APP_SHELL = [

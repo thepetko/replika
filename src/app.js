@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=33';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=34';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=33';
-import { parseText, PARSER_VERSION } from './parser.js?v=33';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=33';
-import { fingerprintScript } from './script-importer.js?v=33';
-import { readDocxParagraphs } from './docx-reader.js?v=33';
+} from './learning-engine.js?v=34';
+import { parseText, PARSER_VERSION } from './parser.js?v=34';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=34';
+import { fingerprintScript } from './script-importer.js?v=34';
+import { readDocxParagraphs } from './docx-reader.js?v=34';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=33';
+} from './scene-learning-engine.js?v=34';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=33';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=33';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=33';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=33';
+} from './storage.js?v=34';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=34';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=34';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=34';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -42,7 +42,7 @@ import {
   setScriptFocus,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=33';
+} from './script-game.js?v=34';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -311,8 +311,10 @@ function renderMemorizer() {
   byId('memorizerPaddedBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'padded'));
   byId('memorizerCompactBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'compact'));
   const hasReveal = memorizerAllRevealed || memorizerRevealed.size > 0 || memorizerRevealedLines.size > 0;
-  byId('memorizerHideAllBtn').classList.toggle('hidden', !hasReveal);
-  byId('memorizerRevealAllBtn').classList.toggle('hidden', memorizerAllRevealed);
+  byId('memorizerHideAllBtn').classList.toggle('memorizer-unavailable', !hasReveal);
+  byId('memorizerHideAllBtn').disabled = !hasReveal;
+  byId('memorizerRevealAllBtn').classList.toggle('memorizer-unavailable', memorizerAllRevealed);
+  byId('memorizerRevealAllBtn').disabled = memorizerAllRevealed;
 
   const box = byId('memorizerLines');
   box.classList.toggle('compact', memorizerSpacing === 'compact');
@@ -1687,5 +1689,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=33', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=34', { updateViaCache: 'none' }).catch(() => {});
 }
