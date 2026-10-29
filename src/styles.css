@@ -857,15 +857,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .library-tabs button { flex: 1; }
 }
 
-/* Samostatná plocha na memorovanie podľa dodanej ukážky. */
-.workspace-tabs { display: flex; gap: .3rem; width: fit-content; margin: 1rem 0 0; padding: .25rem; border-radius: 999px; background: var(--paper); }
+/* Rovnaký papier, typografia a ovládanie ako v knižnici a scenári. */
+.workspace-tabs { display: flex; gap: .2rem; width: fit-content; margin: 1rem 0 0; padding: .25rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
 .workspace-tabs button { min-height: 2.75rem; padding: .5rem 1.1rem; border: 0; background: transparent; }
-.workspace-tabs button.active { background: var(--ink); color: white; }
-.memorizer-view { width: min(68rem, 100%); margin: 1rem auto 0; padding: clamp(.75rem, 2vw, 1.5rem); border-radius: 1.5rem; background: #f0e9ff; }
-.memorizer-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: 2rem 0 1.5rem; }
-.memorizer-heading h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); }
-.memorizer-heading p { margin: .45rem 0 0; }
-.memorizer-card { padding: clamp(1rem, 3vw, 2rem); border-radius: var(--radius-large); background: #fff; box-shadow: var(--shadow-low); }
+.workspace-tabs button.active { background: var(--ink); color: var(--surface); }
+.memorizer-view { width: min(61rem, 100%); margin: 0 auto; }
+.memorizer-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; padding: 3rem 0 2rem; border-bottom: 1px solid var(--line); }
+.memorizer-heading p { margin: .65rem 0 0; }
+.memorizer-card { min-height: 26rem; padding: clamp(1.25rem, 4vw, 2.25rem); border-radius: var(--radius-large); background: var(--surface); box-shadow: var(--shadow-low); }
 .memorizer-editor label { display: block; margin: 0 0 .5rem; }
 .memorizer-editor textarea { width: 100%; min-height: 12rem; resize: vertical; font-size: 1.05rem; line-height: 1.6; }
 .memorizer-editor .field-help { margin: .5rem 0 1rem; }
@@ -873,35 +872,33 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-editor .status-message { margin: .5rem 0 0; }
 .memorizer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .memorizer-options, .memorizer-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
-.memorizer-switch { display: inline-flex; padding: .2rem; border-radius: .85rem; background: #f3f1f4; }
-.memorizer-switch button { min-height: 2.55rem; padding: .4rem .85rem; border: 0; border-radius: .65rem; background: transparent; font-weight: 500; }
-.memorizer-switch button.active { background: white; color: #39245e; box-shadow: 0 .15rem .45rem rgb(40 22 70 / 12%); }
-.memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: .65rem; background: white; font-weight: 500; }
+.memorizer-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
+.memorizer-switch button { min-height: 2.55rem; padding: .4rem .85rem; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
+.memorizer-switch button.active { background: var(--ink); color: var(--surface); }
+.memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); font-weight: 700; }
 .memorizer-show-label select { min-height: 2.5rem; padding: .2rem .3rem; border: 0; box-shadow: none; cursor: pointer; }
 .memorizer-actions button { min-height: 2.7rem; padding: .45rem .8rem; font-weight: 600; }
 .memorizer-instruction { margin: 1.1rem 0 2rem; color: var(--muted); }
-.memorizer-lines { padding: .9rem; border: 2px solid #c6a8fa; border-radius: .9rem; color: #7141c9; font-size: clamp(1.35rem, 2.7vw, 1.8rem); line-height: 1.65; }
-.memorizer-lines.compact { padding: .25rem 0; border-color: transparent; }
+.memorizer-lines { padding: 1.25rem; border-radius: var(--radius-medium); background: var(--paper); color: #684c21; font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.7; }
+.memorizer-lines.compact { padding: .25rem 0; background: transparent; }
 .memorizer-line { margin: .35rem 0 1.2rem; }
 .memorizer-line-words { white-space: pre-wrap; overflow-wrap: anywhere; }
 .memorizer-word { display: inline; min-height: 0; padding: 0 .05em; border: 0; border-radius: .2rem; background: transparent; color: inherit; font: inherit; font-weight: 400; line-height: inherit; text-align: left; }
-.memorizer-word:hover { border: 0; background: #f1e9ff; }
+.memorizer-word:hover { border: 0; background: var(--warm-beige); }
 .memorizer-word.revealed { color: var(--ink); }
 .memorizer-lines:not(.compact) .memorizer-word { margin-inline: .14em; }
-.memorizer-blur { color: #895fcf; filter: blur(.18em); user-select: none; pointer-events: none; }
-.memorizer-line-toggle { display: block; min-height: 2.5rem; margin-top: .2rem; padding: .25rem .6rem; color: #61438f; font-size: .8rem; }
+.memorizer-blur { color: #8f816c; filter: blur(.18em); user-select: none; pointer-events: none; }
+.memorizer-line-toggle { display: block; min-height: 2.5rem; margin-top: .2rem; padding: .25rem .6rem; color: var(--muted); font-family: Inter, Arial, sans-serif; font-size: .8rem; }
 .script-speech-controls { flex-wrap: wrap; }
 .script-memorize { min-height: 2.6rem; margin-right: auto; padding: .45rem .8rem; font-size: .82rem; }
 @media (max-width: 720px) {
   .workspace-tabs { width: 100%; }
   .workspace-tabs button { flex: 1; }
-  .memorizer-heading { align-items: start; flex-direction: column; padding-top: 1.5rem; }
-  .memorizer-card { margin-inline: -.25rem; }
-  .memorizer-view { margin-inline: -.25rem; width: calc(100% + .5rem); }
+  .memorizer-heading { align-items: start; flex-direction: column; padding: 2rem 0 1.5rem; }
   .memorizer-toolbar { align-items: stretch; flex-direction: column; }
   .memorizer-options, .memorizer-actions { gap: .4rem; }
   .memorizer-switch { flex: 1 1 auto; }
   .memorizer-switch button { flex: 1; padding-inline: .4rem; }
   .memorizer-instruction { margin-bottom: 1.3rem; }
-  .memorizer-lines { font-size: 1.35rem; }
+  .memorizer-lines { padding: .9rem; font-size: 1.45rem; }
 }
