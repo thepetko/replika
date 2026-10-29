@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=32';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=33';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=32';
-import { parseText, PARSER_VERSION } from './parser.js?v=32';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=32';
-import { fingerprintScript } from './script-importer.js?v=32';
-import { readDocxParagraphs } from './docx-reader.js?v=32';
+} from './learning-engine.js?v=33';
+import { parseText, PARSER_VERSION } from './parser.js?v=33';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=33';
+import { fingerprintScript } from './script-importer.js?v=33';
+import { readDocxParagraphs } from './docx-reader.js?v=33';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=32';
+} from './scene-learning-engine.js?v=33';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=32';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=32';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=32';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=32';
+} from './storage.js?v=33';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=33';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=33';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=33';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -42,7 +42,7 @@ import {
   setScriptFocus,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=32';
+} from './script-game.js?v=33';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -1687,5 +1687,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=32', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=33', { updateViaCache: 'none' }).catch(() => {});
 }

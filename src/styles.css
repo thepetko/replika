@@ -873,7 +873,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .memorizer-options, .memorizer-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
 .memorizer-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
-.memorizer-switch button { min-height: 2.55rem; padding: .4rem .85rem; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
+.memorizer-switch button { min-height: 2.55rem; padding: .4rem .85rem; border: 0; background: transparent; color: var(--muted); font-weight: 700; white-space: nowrap; }
 .memorizer-switch button.active { background: var(--ink); color: var(--surface); }
 .memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); font-weight: 700; }
 .memorizer-show-label select { min-height: 2.5rem; padding: .2rem .3rem; border: 0; box-shadow: none; cursor: pointer; }
@@ -897,8 +897,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .memorizer-heading { align-items: start; flex-direction: column; padding: 2rem 0 1.5rem; }
   .memorizer-toolbar { align-items: stretch; flex-direction: column; }
   .memorizer-options, .memorizer-actions { gap: .4rem; }
-  .memorizer-switch { flex: 1 1 auto; }
-  .memorizer-switch button { flex: 1; padding-inline: .4rem; }
+  .memorizer-switch { flex: 0 0 auto; }
   .memorizer-instruction { margin-bottom: 1.3rem; }
   .memorizer-lines { padding: .9rem; font-size: 1.45rem; }
 }

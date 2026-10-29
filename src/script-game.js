@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=32';
+import { availableDates, estimateMinutes } from './game-plan.js?v=33';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
