@@ -1,4 +1,4 @@
-const RELEASE = '30';
+const RELEASE = '31';
 const CACHE_NAME = `replika-shell-v${RELEASE}`;
 const versioned = path => `${path}?v=${RELEASE}`;
 const APP_SHELL = [
@@ -19,7 +19,8 @@ const APP_SHELL = [
   versioned('./activity-tracker.js'),
   versioned('./ui-interactions.js'),
   versioned('./game-plan.js'),
-  versioned('./script-game.js')
+  versioned('./script-game.js'),
+  versioned('./memorizer.js')
 ];
 
 self.addEventListener('install', event => {

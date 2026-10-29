@@ -95,6 +95,7 @@ export function createEmptyAppData() {
     updatedAt: null,
     rehearsals: [],
     games: [],
+    memorizerDraft: '',
     activity: { days: {} }
   };
 }
@@ -110,10 +111,12 @@ export function validateAppData(value) {
   }
   if (!Array.isArray(value.rehearsals)) throw new Error('Knižnica replík nie je platná.');
   if (value.games !== undefined && !Array.isArray(value.games)) throw new Error('Knižnica hier nie je platná.');
+  if (value.memorizerDraft !== undefined && typeof value.memorizerDraft !== 'string') throw new Error('Cvičebný text nie je platný.');
   if (!isPlainObject(value.activity) || !isPlainObject(value.activity.days)) {
     throw new Error('Časové štatistiky nie sú platné.');
   }
   value.games ??= [];
+  value.memorizerDraft ??= '';
   if (value.schemaVersion < 8) {
     value.games = value.games.filter(game => game?.mode === 'script' || isPlainObject(game?.script));
   }
@@ -125,6 +128,9 @@ export function validateAppData(value) {
     }
     if (typeof rehearsal.title !== 'string' || typeof rehearsal.text !== 'string') {
       throw new Error('Backup obsahuje neplatnú repliku.');
+    }
+    if (rehearsal.practiceText !== undefined && typeof rehearsal.practiceText !== 'string') {
+      throw new Error('Backup obsahuje neplatný cvičebný text.');
     }
     if (rehearsal.importFingerprint !== undefined && typeof rehearsal.importFingerprint !== 'string') {
       throw new Error('Backup obsahuje neplatný údaj o importe.');
@@ -174,6 +180,7 @@ export function validateAppData(value) {
     for (const speech of game.script.speeches) {
       speech.learnedAt ??= null;
       speech.note ??= '';
+      if (speech.practiceText !== undefined && typeof speech.practiceText !== 'string') throw new Error('Cvičebný text repliky nie je platný.');
     }
   }
   return normalized;

@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=30';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=31';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=30';
-import { parseText, PARSER_VERSION } from './parser.js?v=30';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=30';
-import { fingerprintScript } from './script-importer.js?v=30';
-import { readDocxParagraphs } from './docx-reader.js?v=30';
+} from './learning-engine.js?v=31';
+import { parseText, PARSER_VERSION } from './parser.js?v=31';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=31';
+import { fingerprintScript } from './script-importer.js?v=31';
+import { readDocxParagraphs } from './docx-reader.js?v=31';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=30';
+} from './scene-learning-engine.js?v=31';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,9 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=30';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=30';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=30';
+} from './storage.js?v=31';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=31';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=31';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=31';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -41,7 +42,7 @@ import {
   setScriptFocus,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=30';
+} from './script-game.js?v=31';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -49,7 +50,8 @@ const views = {
   scriptGame: byId('scriptGameView'),
   library: byId('libraryView'),
   progress: byId('progressView'),
-  training: byId('trainingView')
+  training: byId('trainingView'),
+  memorizer: byId('memorizerView')
 };
 
 let appData;
@@ -65,6 +67,13 @@ let selectionMode = false;
 const selectedRehearsalIds = new Set();
 const revealedScriptSpeechIds = new Set();
 let allScriptLinesRevealed = false;
+let memorizerSource = null;
+let memorizerMode = 'letters';
+let memorizerSpacing = 'padded';
+let memorizerRevealed = new Set();
+let memorizerRevealedLines = new Set();
+let memorizerAllRevealed = false;
+let memorizerEditing = true;
 
 function nowIso() {
   return new Date().toISOString();
@@ -85,6 +94,7 @@ function normalizeRehearsal(rehearsal) {
     importFingerprint: rehearsal.importFingerprint ?? '',
     gameId: rehearsal.gameId ?? '',
     text: rehearsal.text ?? '',
+    practiceText: rehearsal.practiceText,
     parserVersion: rehearsal.parserVersion ?? null,
     parsed: rehearsal.parsed ?? null,
     session: rehearsal.session ?? null,
@@ -257,7 +267,119 @@ function showView(name) {
   }
   const inTraining = name === 'training';
   tracker.setRehearsalId(inTraining ? currentRehearsalId : null);
+  byId('gamesTabBtn').classList.toggle('active', name !== 'memorizer');
+  byId('gamesTabBtn').setAttribute('aria-current', name !== 'memorizer' ? 'page' : 'false');
+  byId('memorizerTabBtn').classList.toggle('active', name === 'memorizer');
+  byId('memorizerTabBtn').setAttribute('aria-current', name === 'memorizer' ? 'page' : 'false');
   byId('mainContent').focus({ preventScroll: true });
+}
+
+function memorizerText() {
+  if (memorizerSource?.kind === 'game') {
+    const speech = findGame(memorizerSource.gameId)?.script.speeches.find(item => item.id === memorizerSource.speechId);
+    return speech?.practiceText ?? speech?.text ?? '';
+  }
+  if (memorizerSource?.kind === 'rehearsal') {
+    const rehearsal = findRehearsal(memorizerSource.rehearsalId);
+    return rehearsal?.practiceText ?? rehearsal?.text ?? '';
+  }
+  return appData.memorizerDraft ?? '';
+}
+
+function renderMemorizer() {
+  const game = memorizerSource?.kind === 'game' ? findGame(memorizerSource.gameId) : null;
+  const speech = game?.script.speeches.find(item => item.id === memorizerSource.speechId);
+  const rehearsal = memorizerSource?.kind === 'rehearsal' ? findRehearsal(memorizerSource.rehearsalId) : null;
+  byId('memorizerContext').textContent = speech
+    ? `${game.title} · ${speech.speaker} · ${scriptSectionTitle(game, speech.sectionId)}`
+    : rehearsal ? rehearsal.title
+    : 'Vlož text a precvičuj ho po písmenách alebo slovách.';
+  byId('memorizerBackBtn').classList.toggle('hidden', !speech && !rehearsal);
+  byId('memorizerBackBtn').textContent = speech ? '← Späť do scenára' : '← Späť k textom';
+  byId('memorizerEditNote').textContent = speech || rehearsal
+    ? 'Upravený text platí iba pre toto cvičenie. Pôvodný text zostane zachovaný.'
+    : 'Text sa uloží do tohto prehliadača a do zálohy aplikácie.';
+  byId('memorizerEditor').classList.toggle('hidden', !memorizerEditing);
+  byId('memorizerPractice').classList.toggle('hidden', memorizerEditing);
+  byId('memorizerCancelEditBtn').classList.toggle('hidden', !memorizerText().trim());
+  byId('memorizerLettersBtn').classList.toggle('active', memorizerMode === 'letters');
+  byId('memorizerWordsBtn').classList.toggle('active', memorizerMode === 'words');
+  byId('memorizerLettersBtn').setAttribute('aria-pressed', String(memorizerMode === 'letters'));
+  byId('memorizerWordsBtn').setAttribute('aria-pressed', String(memorizerMode === 'words'));
+  byId('memorizerPaddedBtn').classList.toggle('active', memorizerSpacing === 'padded');
+  byId('memorizerCompactBtn').classList.toggle('active', memorizerSpacing === 'compact');
+  byId('memorizerPaddedBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'padded'));
+  byId('memorizerCompactBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'compact'));
+  const hasReveal = memorizerAllRevealed || memorizerRevealed.size > 0 || memorizerRevealedLines.size > 0;
+  byId('memorizerHideAllBtn').classList.toggle('hidden', !hasReveal);
+  byId('memorizerRevealAllBtn').classList.toggle('hidden', memorizerAllRevealed);
+
+  const box = byId('memorizerLines');
+  box.classList.toggle('compact', memorizerSpacing === 'compact');
+  box.replaceChildren();
+  let globalWordIndex = 0;
+  for (const [lineIndex, line] of splitMemorizerLines(memorizerText()).entries()) {
+    const row = element('div', 'memorizer-line');
+    const words = element('div', 'memorizer-line-words');
+    let lineWordIndex = 0;
+    for (const token of splitMemorizerTokens(line)) {
+      if (!isWordToken(token)) { words.append(document.createTextNode(token)); continue; }
+      const wordIndex = globalWordIndex++;
+      const revealed = memorizerAllRevealed || memorizerRevealedLines.has(lineIndex) || memorizerRevealed.has(wordIndex);
+      const word = element('button', `memorizer-word${revealed ? ' revealed' : ''}`);
+      word.type = 'button';
+      word.setAttribute('aria-label', `${revealed ? 'Skryť' : 'Odkryť'} slovo ${lineWordIndex + 1} v riadku ${lineIndex + 1}`);
+      word.setAttribute('aria-pressed', String(revealed));
+      const count = Number(byId('memorizerShowSelect').value);
+      if (revealed || (memorizerMode === 'words' && lineWordIndex < count)) {
+        word.textContent = token;
+      } else if (memorizerMode === 'letters') {
+        const prefix = visiblePrefix(token, count);
+        word.append(document.createTextNode(prefix));
+        const rest = element('span', 'memorizer-blur', Array.from(token).slice(count).join(''));
+        rest.setAttribute('aria-hidden', 'true');
+        word.append(rest);
+      } else {
+        const blur = element('span', 'memorizer-blur', token);
+        blur.setAttribute('aria-hidden', 'true');
+        word.append(blur);
+      }
+      word.addEventListener('click', () => {
+        if (memorizerRevealed.has(wordIndex)) memorizerRevealed.delete(wordIndex);
+        else memorizerRevealed.add(wordIndex);
+        memorizerAllRevealed = false;
+        renderMemorizer();
+        box.querySelectorAll('.memorizer-word')[wordIndex]?.focus({ preventScroll: true });
+      });
+      words.append(word);
+      lineWordIndex++;
+    }
+    row.append(words);
+    const lineButton = element('button', 'memorizer-line-toggle text-button', memorizerRevealedLines.has(lineIndex) || memorizerAllRevealed ? 'Skryť riadok' : 'Odkryť riadok');
+    lineButton.type = 'button';
+    lineButton.addEventListener('click', () => {
+      if (memorizerRevealedLines.has(lineIndex)) memorizerRevealedLines.delete(lineIndex);
+      else memorizerRevealedLines.add(lineIndex);
+      memorizerAllRevealed = false;
+      renderMemorizer();
+      box.querySelectorAll('.memorizer-line-toggle')[lineIndex]?.focus({ preventScroll: true });
+    });
+    row.append(lineButton);
+    box.append(row);
+  }
+}
+
+function openMemorizer(source = null) {
+  memorizerSource = source;
+  memorizerRevealed = new Set();
+  memorizerRevealedLines = new Set();
+  memorizerAllRevealed = false;
+  memorizerEditing = !memorizerText().trim();
+  byId('memorizerText').value = memorizerText();
+  byId('memorizerMessage').textContent = '';
+  showView('memorizer');
+  renderMemorizer();
+  globalThis.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function syncLibraryTabs() {
@@ -415,6 +537,11 @@ function renderScriptSpeech(game, speech, targetIds) {
     if (speech.note) renderNoteView(); else renderNotePrompt();
     row.append(note);
     const controls = element('div', 'script-speech-controls');
+    const memorize = element('button', 'secondary script-memorize', 'Učiť túto repliku');
+    memorize.type = 'button';
+    memorize.setAttribute('aria-label', `Učiť túto repliku postavy ${game.character} po písmenách alebo slovách`);
+    memorize.addEventListener('click', () => openMemorizer({ kind: 'game', gameId: game.id, speechId: speech.id }));
+    controls.append(memorize);
     if (revealed) {
       const hide = element('button', 'text-button', 'Skryť repliku'); hide.type = 'button';
       hide.addEventListener('click', () => { revealedScriptSpeechIds.delete(speech.id); allScriptLinesRevealed = false; renderScriptGame(true); });
@@ -606,20 +733,20 @@ function createRehearsalCard(rehearsal) {
   const actions = element('div', 'card-actions');
   const primary = element('button', 'primary');
   primary.type = 'button';
-  primary.textContent = rehearsal.status === 'inProgress'
+  primary.textContent = rehearsal.type === 'rehearsal' ? 'Učiť po písmenách' : rehearsal.status === 'inProgress'
     ? 'Pokračovať'
     : rehearsal.status === 'reviewDue'
       ? 'Spustiť kontrolu'
       : rehearsal.status === 'draft'
         ? 'Začať učiť'
         : 'Precvičiť znova';
-  primary.addEventListener('click', () => openRehearsal(rehearsal.id));
+  primary.addEventListener('click', () => rehearsal.type === 'rehearsal' ? openMemorizer({ kind: 'rehearsal', rehearsalId: rehearsal.id }) : openRehearsal(rehearsal.id));
   actions.append(primary);
 
   if (rehearsal.status === 'inProgress') {
-    const restart = element('button', 'secondary', 'Začať odznova');
+    const restart = element('button', 'secondary', rehearsal.type === 'rehearsal' ? 'Krokový tréning' : 'Začať odznova');
     restart.type = 'button';
-    restart.addEventListener('click', () => confirmRestart(rehearsal.id));
+    restart.addEventListener('click', () => rehearsal.type === 'rehearsal' ? openRehearsal(rehearsal.id) : confirmRestart(rehearsal.id));
     actions.append(restart);
   }
 
@@ -906,6 +1033,7 @@ async function saveRehearsalFromForm(event) {
       updatedAt: timestamp
     });
     if (textChanged) {
+      existing.practiceText = undefined;
       existing.parsed = parsed;
       existing.parserVersion = PARSER_VERSION;
       existing.session = null;
@@ -1348,6 +1476,57 @@ const tracker = new VisibleActivityTracker({
 });
 
 byId('brandButton').addEventListener('click', showGames);
+byId('gamesTabBtn').addEventListener('click', showGames);
+byId('memorizerTabBtn').addEventListener('click', () => openMemorizer());
+byId('memorizerBackBtn').addEventListener('click', () => {
+  const source = memorizerSource;
+  if (source?.kind === 'rehearsal') return showLibrary();
+  if (!source || source.kind !== 'game') return showGames();
+  openGame(source.gameId);
+  requestAnimationFrame(() => byId(`script-speech-${source.speechId}`)?.scrollIntoView({ block: 'center', behavior: 'auto' }));
+});
+byId('memorizerStartBtn').addEventListener('click', () => {
+  const value = byId('memorizerText').value.trim();
+  if (!value) { byId('memorizerMessage').textContent = 'Vlož text repliky.'; return; }
+  if (memorizerSource?.kind === 'game') {
+    const game = findGame(memorizerSource.gameId);
+    const speech = game?.script.speeches.find(item => item.id === memorizerSource.speechId);
+    if (!speech) { byId('memorizerMessage').textContent = 'Replika už nie je v scenári.'; return; }
+    const previous = speech.practiceText;
+    speech.practiceText = value === speech.text ? undefined : value;
+    if (!persist()) { speech.practiceText = previous; byId('memorizerMessage').textContent = 'Text sa nepodarilo uložiť.'; return; }
+  } else if (memorizerSource?.kind === 'rehearsal') {
+    const rehearsal = findRehearsal(memorizerSource.rehearsalId);
+    if (!rehearsal) { byId('memorizerMessage').textContent = 'Text už nie je v knižnici.'; return; }
+    const previous = rehearsal.practiceText;
+    rehearsal.practiceText = value === rehearsal.text ? undefined : value;
+    if (!persist()) { rehearsal.practiceText = previous; byId('memorizerMessage').textContent = 'Text sa nepodarilo uložiť.'; return; }
+  } else {
+    const previous = appData.memorizerDraft;
+    appData.memorizerDraft = value;
+    if (!persist()) { appData.memorizerDraft = previous; byId('memorizerMessage').textContent = 'Text sa nepodarilo uložiť.'; return; }
+  }
+  memorizerRevealed.clear(); memorizerRevealedLines.clear(); memorizerAllRevealed = false;
+  memorizerEditing = false;
+  byId('memorizerMessage').textContent = '';
+  renderMemorizer();
+});
+byId('memorizerCancelEditBtn').addEventListener('click', () => { memorizerEditing = false; renderMemorizer(); });
+byId('memorizerEditBtn').addEventListener('click', () => {
+  memorizerEditing = true;
+  byId('memorizerText').value = memorizerText();
+  renderMemorizer();
+  byId('memorizerText').focus();
+});
+for (const [id, mode] of [['memorizerLettersBtn', 'letters'], ['memorizerWordsBtn', 'words']]) {
+  byId(id).addEventListener('click', () => { memorizerMode = mode; renderMemorizer(); });
+}
+for (const [id, spacing] of [['memorizerPaddedBtn', 'padded'], ['memorizerCompactBtn', 'compact']]) {
+  byId(id).addEventListener('click', () => { memorizerSpacing = spacing; renderMemorizer(); });
+}
+byId('memorizerShowSelect').addEventListener('change', renderMemorizer);
+byId('memorizerRevealAllBtn').addEventListener('click', () => { memorizerAllRevealed = true; renderMemorizer(); });
+byId('memorizerHideAllBtn').addEventListener('click', () => { memorizerAllRevealed = false; memorizerRevealed.clear(); memorizerRevealedLines.clear(); renderMemorizer(); });
 byId('standaloneLibraryBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
 byId('backFromLibraryBtn').addEventListener('click', showGames);
 byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; syncLibraryTabs(); renderLibrary(); });
@@ -1508,5 +1687,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=30', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=31', { updateViaCache: 'none' }).catch(() => {});
 }

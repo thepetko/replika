@@ -25,6 +25,8 @@ Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho 
 
 Po otvorení aplikácie sa zobrazia hry. Otvorená hra je jeden súvislý scenár s progresom, dnešným cieľom a ovládaním masiek. Samostatné texty zostávajú dostupné z úvodnej obrazovky cez tlačidlo **Samostatné texty**.
 
+Karta **Učiť repliku** umožňuje vložiť samostatný text a precvičovať ho podľa prvých 1–3 písmen alebo slov. Prepína rozostupy, odkrýva jednotlivé slová či celé riadky a umožňuje odkryť alebo skryť celý text. Cvičebný text sa ukladá lokálne a je súčasťou JSON zálohy. Rovnaké rozhranie otvoríš z každej vlastnej repliky v importovanom scenári tlačidlom **Učiť túto repliku** alebo zo samostatného textu v knižnici. Úprava cvičebnej verzie nemení pôvodný scenár ani uložený text.
+
 ## Scény
 
 V karte **Scény** vlož scenár v jednoduchom tvare:

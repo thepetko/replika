@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -30,6 +30,11 @@
       <input id="importFile" type="file" accept="application/json,.json" hidden tabindex="-1">
     </div>
   </header>
+
+  <nav class="workspace-tabs" aria-label="Hlavné časti">
+    <button id="gamesTabBtn" class="active" type="button" aria-current="page">Hry</button>
+    <button id="memorizerTabBtn" type="button">Učiť repliku</button>
+  </nav>
 
   <main id="mainContent" tabindex="-1">
     <section class="view" id="gamesView" aria-labelledby="gamesHeading">
@@ -69,6 +74,34 @@
       </details>
       <div class="script-document" id="scriptDocument" aria-label="Celý scenár"></div>
       <p class="status-message" id="scriptGameMessage" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="view memorizer-view hidden" id="memorizerView" aria-labelledby="memorizerHeading">
+      <div class="memorizer-heading">
+        <div><h1 id="memorizerHeading">Učiť repliku</h1><p id="memorizerContext" class="muted-copy">Vlož text a precvičuj ho po písmenách alebo slovách.</p></div>
+        <button id="memorizerBackBtn" class="text-button hidden" type="button">← Späť do scenára</button>
+      </div>
+      <div class="memorizer-card">
+        <div id="memorizerEditor" class="memorizer-editor">
+          <label for="memorizerText">Text repliky</label>
+          <textarea id="memorizerText" rows="8" placeholder="Sem vlož repliku alebo monológ…"></textarea>
+          <p id="memorizerEditNote" class="field-help">Text sa uloží do tohto prehliadača.</p>
+          <div class="memorizer-editor-actions"><button id="memorizerStartBtn" class="primary" type="button">Začať cvičiť</button><button id="memorizerCancelEditBtn" class="text-button hidden" type="button">Zrušiť</button></div>
+          <p id="memorizerMessage" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+        <div id="memorizerPractice" class="hidden">
+          <div class="memorizer-toolbar">
+            <div class="memorizer-options">
+              <div class="memorizer-switch" role="group" aria-label="Spôsob nápovedy"><button id="memorizerLettersBtn" class="active" type="button" aria-pressed="true">Písmená</button><button id="memorizerWordsBtn" type="button" aria-pressed="false">Slová</button></div>
+              <div class="memorizer-switch" role="group" aria-label="Rozostupy"><button id="memorizerPaddedBtn" class="active" type="button" aria-pressed="true">S rozostupmi</button><button id="memorizerCompactBtn" type="button" aria-pressed="false">Kompaktne</button></div>
+              <label class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen alebo slov"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
+            </div>
+            <div class="memorizer-actions"><button id="memorizerHideAllBtn" class="text-button hidden" type="button">Skryť všetko</button><button id="memorizerRevealAllBtn" class="secondary" type="button">Odkryť všetko</button><button id="memorizerEditBtn" class="text-button" type="button">Upraviť</button></div>
+          </div>
+          <p class="memorizer-instruction">Povedz repliku spamäti. Ťukni na slovo alebo riadok a skontroluj sa.</p>
+          <div id="memorizerLines" class="memorizer-lines" aria-label="Text na precvičovanie"></div>
+        </div>
+      </div>
     </section>
 
     <section class="view hidden" id="libraryView" aria-labelledby="libraryHeading">
@@ -312,6 +345,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=30"></script>
+<script type="module" src="app.js?v=31"></script>
 </body>
 </html>
