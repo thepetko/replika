@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=35';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=36';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=35';
-import { parseText, PARSER_VERSION } from './parser.js?v=35';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=35';
-import { fingerprintScript } from './script-importer.js?v=35';
-import { readDocxParagraphs } from './docx-reader.js?v=35';
+} from './learning-engine.js?v=36';
+import { parseText, PARSER_VERSION } from './parser.js?v=36';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=36';
+import { fingerprintScript } from './script-importer.js?v=36';
+import { readDocxParagraphs } from './docx-reader.js?v=36';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=35';
+} from './scene-learning-engine.js?v=36';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=35';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=35';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=35';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=35';
+} from './storage.js?v=36';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=36';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=36';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=36';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -43,7 +43,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=35';
+} from './script-game.js?v=36';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -480,10 +480,10 @@ function renderScriptSpeech(game, speech, targetIds) {
   if (speech.hidden) {
     const row = element('article', `script-speech script-speech-collapsed ${own ? 'own-script-speech' : 'partner-script-speech'}`);
     row.id = `script-speech-${speech.id}`;
-    row.append(element('span', 'script-hidden-label', `Skrytá replika · ${speech.speaker}`));
-    const restore = element('button', 'text-button script-restore-speech', 'Obnoviť');
+    const restore = element('button', 'script-restore-speech');
     restore.type = 'button';
     restore.setAttribute('aria-label', `Obnoviť repliku ${speech.order + 1} postavy ${speech.speaker} v scenári`);
+    restore.append(element('span', 'script-hidden-label', `${speech.speaker} · skrytá replika`), element('span', 'script-restore-action', 'Obnoviť'));
     restore.addEventListener('click', () => toggleScriptSpeechHidden(game.id, speech.id, false));
     row.append(restore);
     return row;
@@ -492,7 +492,14 @@ function renderScriptSpeech(game, speech, targetIds) {
   const revealed = allScriptLinesRevealed || revealedScriptSpeechIds.has(speech.id);
   const row = element('article', `script-speech${own ? ' own-script-speech' : ' partner-script-speech'}${learned ? ' learned' : ''}${targetIds.has(speech.id) ? ' today-target' : ''}`);
   row.id = `script-speech-${speech.id}`;
-  row.append(element('strong', 'script-speaker', speech.speaker));
+  const header = element('div', 'script-speech-header');
+  header.append(element('strong', 'script-speaker', speech.speaker));
+  const visibility = element('button', 'text-button script-hide-speech', 'Schovať');
+  visibility.type = 'button';
+  visibility.setAttribute('aria-label', `Schovať repliku ${speech.order + 1} postavy ${speech.speaker} zo scenára`);
+  visibility.addEventListener('click', () => toggleScriptSpeechHidden(game.id, speech.id, true));
+  header.append(visibility);
+  row.append(header);
   const textWrap = element('div', `script-speech-text${own && !revealed ? ' masked' : ''}`);
   const copy = element('div', 'script-speech-copy');
   copy.setAttribute('aria-hidden', String(own && !revealed));
@@ -598,16 +605,6 @@ function renderScriptSpeech(game, speech, targetIds) {
       setTimeout(() => { if (currentView === 'scriptGame' && currentGameId === game.id) renderScriptGame(true); }, globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 520);
     });
     controls.append(checkbox, knownText); row.append(controls);
-  }
-  const visibility = element('button', 'text-button script-hide-speech', 'Schovať zo scenára');
-  visibility.type = 'button';
-  visibility.setAttribute('aria-label', `Schovať repliku ${speech.order + 1} postavy ${speech.speaker} zo scenára`);
-  visibility.addEventListener('click', () => toggleScriptSpeechHidden(game.id, speech.id, true));
-  if (own) row.querySelector('.script-speech-controls').append(visibility);
-  else {
-    const controls = element('div', 'script-speech-controls partner-script-controls');
-    controls.append(visibility);
-    row.append(controls);
   }
   return row;
 }
@@ -1730,5 +1727,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=35', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=36', { updateViaCache: 'none' }).catch(() => {});
 }
