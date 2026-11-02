@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -56,7 +56,7 @@
         <div class="script-toolbar-main">
           <div class="script-progress-copy"><strong id="scriptProgressLabel">0 z 0 replík</strong><span id="scriptPaceLabel"></span></div>
           <div class="script-toolbar-actions">
-            <button class="primary" id="goToTodayTargetBtn" type="button">Dnešný cieľ</button>
+            <button class="primary" id="goToTodayTargetBtn" type="button">Prejsť k replike</button>
             <button class="secondary" id="toggleAllScriptLinesBtn" type="button" aria-pressed="false">Odkryť repliky</button>
             <label class="script-section-jump" for="scriptSectionSelect"><span class="visually-hidden">Prejsť na časť</span><select id="scriptSectionSelect" aria-label="Prejsť na časť scenára"></select></label>
           </div>
@@ -113,7 +113,7 @@
         </div>
         <div class="library-header-actions">
           <button class="secondary" id="selectLibraryBtn" type="button">Označiť</button>
-          <button class="icon-button primary" id="newRehearsalBtn" type="button" aria-label="Pridať novú repliku">+</button>
+          <button class="primary" id="newRehearsalBtn" type="button">Pridať repliku</button>
         </div>
       </div>
 
@@ -224,8 +224,8 @@
 
       <div class="empty-state hidden" id="emptyLibrary">
         <div class="empty-symbol" aria-hidden="true">“</div>
-        <h2>Začni prvou replikou</h2>
-        <p>Text zostane iba v tomto prehliadači. Aplikácia ťa ním prevedie v pôvodnom poradí.</p>
+        <h2 id="emptyLibraryHeading">Začni prvou replikou</h2>
+        <p id="emptyLibraryDescription">Vlož text a precvičuj ho vo vlastnom tempe. Zostane v tomto prehliadači.</p>
         <button class="primary" id="emptyAddBtn" type="button">Pridať repliku</button>
       </div>
 
@@ -345,6 +345,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=36"></script>
+<script type="module" src="app.js?v=37"></script>
 </body>
 </html>

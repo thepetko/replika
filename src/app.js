@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=36';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=37';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=36';
-import { parseText, PARSER_VERSION } from './parser.js?v=36';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=36';
-import { fingerprintScript } from './script-importer.js?v=36';
-import { readDocxParagraphs } from './docx-reader.js?v=36';
+} from './learning-engine.js?v=37';
+import { parseText, PARSER_VERSION } from './parser.js?v=37';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=37';
+import { fingerprintScript } from './script-importer.js?v=37';
+import { readDocxParagraphs } from './docx-reader.js?v=37';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=36';
+} from './scene-learning-engine.js?v=37';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=36';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=36';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=36';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=36';
+} from './storage.js?v=37';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=37';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=37';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=37';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -43,7 +43,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=36';
+} from './script-game.js?v=37';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -262,6 +262,7 @@ function element(tag, className, text) {
 function normalizedDialogueLabel(text = '') { return String(text).toLocaleLowerCase('sk').replace(/[^\p{L}\p{N}]+/gu, ' ').trim(); }
 
 function showView(name) {
+  const changedView = currentView !== name;
   currentView = name;
   for (const [viewName, view] of Object.entries(views)) {
     view.classList.toggle('hidden', viewName !== name);
@@ -273,6 +274,7 @@ function showView(name) {
   byId('memorizerTabBtn').classList.toggle('active', name === 'memorizer');
   byId('memorizerTabBtn').setAttribute('aria-current', name === 'memorizer' ? 'page' : 'false');
   byId('mainContent').focus({ preventScroll: true });
+  if (changedView) globalThis.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function memorizerText() {
@@ -401,6 +403,10 @@ function replikaCount(count) {
   return `${count} ${count === 1 ? 'replika' : count >= 2 && count <= 4 ? 'repliky' : 'replík'}`;
 }
 
+function odsekCount(count) {
+  return `${count} ${count === 1 ? 'odsek' : count >= 2 && count <= 4 ? 'odseky' : 'odsekov'}`;
+}
+
 function setGamesMessage(message = '', isError = false) {
   const node = byId('gamesMessage'); node.textContent = message; node.classList.toggle('error', isError);
 }
@@ -429,7 +435,7 @@ function renderGames() {
     top.append(group, tools);
     const track = element('div', 'mini-progress'); const bar = element('span'); bar.style.width = `${percent}%`; track.append(bar);
     const open = element('button', 'primary', 'Otvoriť hru'); open.type = 'button'; open.addEventListener('click', () => openGame(game.id));
-    card.append(top, element('div', 'card-info', `${done} z ${replikaCount(total)} hotových`), track, open); list.append(card);
+    card.append(top, element('div', 'card-info', `Hotové repliky: ${done} / ${total}`), track, open); list.append(card);
   }
 }
 
@@ -627,12 +633,16 @@ function renderScriptGame(keepScroll = false) {
   byId('scriptPaceLabel').textContent = pace.impossible ? 'Termín už nie je možné stihnúť bez zmeny.' : `${pace.availableDays} dní · približne ${pace.requiredMinutes} min denne`;
   byId('scriptPaceLabel').classList.toggle('error', pace.impossible);
   byId('scriptProgressBar').style.width = `${progress.percent}%`;
+  byId('goToTodayTargetBtn').textContent = isDailyTargetComplete(game, today) ? 'Zobraziť cieľ' : 'Prejsť k replike';
   const toggle = byId('toggleAllScriptLinesBtn');
   toggle.textContent = allScriptLinesRevealed ? 'Skryť repliky' : 'Odkryť repliky';
   toggle.setAttribute('aria-pressed', String(allScriptLinesRevealed));
 
   const todayPanel = byId('scriptTodayPanel'); todayPanel.replaceChildren();
-  const todayCopy = element('div'); todayCopy.append(element('p', 'script-today-kicker', 'Dnešný cieľ'), element('h2', '', isDailyTargetComplete(game, today) ? 'Dnešný cieľ je hotový' : `${replikaCount(target.speechIds.filter(id => !game.script.speeches.find(speech => speech.id === id)?.learnedAt).length)} v scenári`));
+  const todayCopy = element('div');
+  const todayHeading = element('h2', '', isDailyTargetComplete(game, today) ? 'Dnešný cieľ je hotový' : `${replikaCount(target.speechIds.filter(id => !game.script.speeches.find(speech => speech.id === id)?.learnedAt).length)} v scenári`);
+  todayHeading.id = 'scriptTodayHeading';
+  todayCopy.append(element('p', 'script-today-kicker', 'Dnešný cieľ'), todayHeading);
   const targetMinutes = target.speechIds.reduce((sum, id) => sum + estimateMinutes(game.script.speeches.find(speech => speech.id === id)?.text ?? ''), 0);
   todayCopy.append(element('p', 'muted-copy', target.speechIds.length ? `Súvislá dávka v pôvodnom poradí · približne ${targetMinutes} min` : game.daysOff.includes(today) ? 'Dnes máš označený voľný deň.' : 'Všetky repliky sú hotové.'));
   todayPanel.append(todayCopy);
@@ -710,7 +720,15 @@ function renderLibrary() {
   });
 
   byId('libraryHeading').textContent = activeLibraryTab === 'scene' ? 'Scény' : 'Repliky';
-  byId('newRehearsalBtn').setAttribute('aria-label', activeLibraryTab === 'scene' ? 'Pridať novú scénu' : 'Pridať novú repliku');
+  const isScene = activeLibraryTab === 'scene';
+  byId('newRehearsalBtn').textContent = isScene ? 'Pridať scénu' : 'Pridať repliku';
+  byId('newRehearsalBtn').classList.toggle('hidden', sorted.length === 0);
+  byId('selectLibraryBtn').classList.toggle('hidden', sorted.length === 0 && !selectionMode);
+  byId('emptyLibraryHeading').textContent = isScene ? 'Začni prvou scénou' : 'Začni prvou replikou';
+  byId('emptyLibraryDescription').textContent = isScene
+    ? 'Vlož dialóg a vyber svoju postavu. Text zostane v tomto prehliadači.'
+    : 'Vlož text a precvičuj ho vo vlastnom tempe. Zostane v tomto prehliadači.';
+  byId('emptyAddBtn').textContent = isScene ? 'Pridať scénu' : 'Pridať repliku';
   byId('sceneImportBtn').classList.toggle('hidden', activeLibraryTab !== 'scene');
   const visibleIds = sorted.map(item => item.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedRehearsalIds.has(id));
@@ -733,7 +751,7 @@ function createRehearsalCard(rehearsal) {
   const titleGroup = element('div', 'card-title-group');
   const title = element('h2', '', rehearsal.title);
   const metadata = rehearsal.type === 'scene'
-    ? [rehearsal.character, `${rehearsal.parsed?.entries?.filter(entry => entry.type === 'speech').length ?? 0} replík`].join(' · ')
+    ? [rehearsal.character, replikaCount(rehearsal.parsed?.entries?.filter(entry => entry.type === 'speech').length ?? 0)].join(' · ')
     : [rehearsal.play, rehearsal.character, rehearsal.scene].filter(Boolean).join(' · ');
   titleGroup.append(title);
   if (metadata) titleGroup.append(element('p', 'card-meta', metadata));
@@ -808,6 +826,7 @@ function createRehearsalCard(rehearsal) {
 }
 
 function openEditor(id = null) {
+  setLibraryMessage();
   editingRehearsalId = id;
   editingType = 'rehearsal';
   const rehearsal = id ? findRehearsal(id) : null;
@@ -843,7 +862,7 @@ function updateScenePreview() {
     select.disabled = true;
     return parsed;
   }
-  preview.textContent = `Rozpoznané postavy: ${parsed.speakers.join(', ')} · ${parsed.entries.filter(entry => entry.type === 'speech').length} replík`;
+  preview.textContent = `Rozpoznané postavy: ${parsed.speakers.join(', ')} · ${replikaCount(parsed.entries.filter(entry => entry.type === 'speech').length)}`;
   preview.classList.remove('hidden');
   select.append(new Option('Vyber postavu', ''));
   for (const speaker of parsed.speakers) select.append(new Option(speaker, speaker));
@@ -852,6 +871,7 @@ function updateScenePreview() {
 }
 
 function openSceneEditor(id = null) {
+  setLibraryMessage();
   editingRehearsalId = id;
   editingType = 'scene';
   const rehearsal = id ? findRehearsal(id) : null;
@@ -898,6 +918,7 @@ function closeScriptImport() {
 }
 
 function openScriptImport() {
+  setLibraryMessage();
   const returnToGames = currentView === 'games';
   showView('library');
   byId('libraryHeading').textContent = returnToGames ? 'Nová hra' : 'Scény';
@@ -938,7 +959,7 @@ function renderScriptImportPreviewContent() {
   scriptImportState.draft = { script: parsedDocument, character };
   const ownLines = parsedDocument.speeches.filter(speech => speech.speaker === character).length;
   const duplicate = appData.games.some(game => game.importFingerprint === fingerprint && game.character === character);
-  preview.append(element('strong', '', `${parsedDocument.entries.length} odsekov · ${parsedDocument.speeches.length} replík · ${ownLines} tvojich`));
+  preview.append(element('strong', '', `${odsekCount(parsedDocument.entries.length)} · ${replikaCount(parsedDocument.speeches.length)} · ${replikaCount(ownLines)} tvojej postavy`));
   preview.append(element('p', 'muted-copy', duplicate ? 'Tento scenár s rovnakou postavou už v knižnici je. Import vytvorí samostatnú novú hru.' : `Zdroj: ${sourceTitle}. Každý odsek zostane na pôvodnom mieste.`));
   byId('gameImportOptions').classList.remove('hidden');
   if (!byId('scriptImportGameTitle').value) byId('scriptImportGameTitle').value = sourceTitle;
@@ -1569,8 +1590,8 @@ byId('memorizerRevealAllBtn').addEventListener('click', () => { memorizerAllReve
 byId('memorizerHideAllBtn').addEventListener('click', () => { memorizerAllRevealed = false; memorizerRevealed.clear(); memorizerRevealedLines.clear(); renderMemorizer(); });
 byId('standaloneLibraryBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; showLibrary(); });
 byId('backFromLibraryBtn').addEventListener('click', showGames);
-byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; syncLibraryTabs(); renderLibrary(); });
-byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; syncLibraryTabs(); renderLibrary(); });
+byId('rehearsalsTabBtn').addEventListener('click', () => { activeLibraryTab = 'rehearsal'; setLibraryMessage(); syncLibraryTabs(); renderLibrary(); });
+byId('scenesTabBtn').addEventListener('click', () => { activeLibraryTab = 'scene'; setLibraryMessage(); syncLibraryTabs(); renderLibrary(); });
 byId('newRehearsalBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
 byId('emptyAddBtn').addEventListener('click', () => activeLibraryTab === 'scene' ? openSceneEditor() : openEditor());
 byId('selectLibraryBtn').addEventListener('click', toggleSelectionMode);
@@ -1727,5 +1748,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=36', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=37', { updateViaCache: 'none' }).catch(() => {});
 }

@@ -71,7 +71,7 @@ test('ovládanie scenára používa kompaktnú spoločnú lištu', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const toolbar = html.slice(html.indexOf('class="script-toolbar"'), html.indexOf('id="scriptTodayPanel"'));
   assert.match(toolbar, /class="script-toolbar-main"/u);
-  assert.match(toolbar, />Dnešný cieľ</u);
+  assert.match(toolbar, />Prejsť k replike</u);
   assert.match(toolbar, />Odkryť repliky</u);
   assert.match(toolbar, /aria-label="Prejsť na časť scenára"/u);
 });
