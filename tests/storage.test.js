@@ -217,6 +217,18 @@ test('backup obnoví celý webový scenár, progres, prioritu a dnešný cieľ',
   assert.equal(restored.script.speeches[0].learnedAt, '2026-08-12T09:00:00.000Z');
   assert.equal(restored.focusSectionId, 'section-1');
   assert.deepEqual(restored.dailyTargets['2026-08-12'].speechIds, ['speech-1']);
+  assert.equal(restored.script.speeches[0].hidden, false);
+});
+
+test('záloha zachová skrytú repliku a odmietne neplatný stav skrytia', () => {
+  const data = createEmptyAppData();
+  const game = scriptGame('hidden-game');
+  game.script.speeches[0].hidden = true;
+  data.games.push(game);
+  const restored = validateBackup(createBackup(data)).data.games[0];
+  assert.equal(restored.script.speeches[0].hidden, true);
+  restored.script.speeches[0].hidden = 'áno';
+  assert.throws(() => validateAppData({ ...data, games: [restored] }), /neplatnú repliku scenára/u);
 });
 
 test('odstránenie hry vymaže iba jej scény a zachová ostatné dáta', () => {

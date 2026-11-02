@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=34';
+import { availableDates, estimateMinutes } from './game-plan.js?v=35';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
@@ -158,7 +158,8 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
         text: '',
         order: speeches.length,
         learnedAt: null,
-        note: ''
+        note: '',
+        hidden: false
       };
       speeches.push(activeSpeech);
       if (!speakers.includes(speaker)) speakers.push(speaker);
@@ -186,7 +187,7 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
 
 export function scriptOwnSpeeches(game) {
   const character = normalizeSpeaker(game?.character);
-  return (game?.script?.speeches ?? []).filter(speech => normalizeSpeaker(speech.speaker) === character);
+  return (game?.script?.speeches ?? []).filter(speech => normalizeSpeaker(speech.speaker) === character && !speech.hidden);
 }
 
 export function scriptProgress(game) {
@@ -276,6 +277,23 @@ export function setScriptSpeechNoteById(games, gameId, speechId, note) {
   const speech = game?.script?.speeches?.find(item => item.id === speechId);
   if (!speech || normalizeSpeaker(speech.speaker) !== normalizeSpeaker(game.character)) return false;
   speech.note = String(note ?? '').trim().slice(0, 2000);
+  game.updatedAt = new Date().toISOString();
+  return true;
+}
+
+export function setScriptSpeechHiddenById(games, gameId, speechId, hidden, today) {
+  const game = games?.find(item => item.id === gameId);
+  const speech = game?.script?.speeches?.find(item => item.id === speechId);
+  if (!speech) return false;
+  const own = normalizeSpeaker(speech.speaker) === normalizeSpeaker(game.character);
+  speech.hidden = Boolean(hidden);
+  if (own && speech.hidden) {
+    for (const [date, target] of Object.entries(game.dailyTargets ?? {})) {
+      if (today && date < today) continue;
+      target.speechIds = target.speechIds.filter(id => id !== speechId);
+    }
+  }
+  if (own && today && game.dailyTargets?.[today]?.speechIds.length === 0) delete game.dailyTargets[today];
   game.updatedAt = new Date().toISOString();
   return true;
 }

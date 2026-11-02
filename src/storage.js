@@ -72,6 +72,7 @@ function validateScriptGame(game) {
       || !Array.isArray(speech.entryIds) || !speech.entryIds.every(id => entryIds.has(id))
       || typeof speech.text !== 'string'
       || (speech.note !== undefined && typeof speech.note !== 'string')
+      || (speech.hidden !== undefined && typeof speech.hidden !== 'boolean')
       || (speech.learnedAt !== null && speech.learnedAt !== undefined && typeof speech.learnedAt !== 'string')) {
       throw new Error('Backup obsahuje neplatnú repliku scenára.');
     }
@@ -180,6 +181,7 @@ export function validateAppData(value) {
     for (const speech of game.script.speeches) {
       speech.learnedAt ??= null;
       speech.note ??= '';
+      speech.hidden ??= false;
       if (speech.practiceText !== undefined && typeof speech.practiceText !== 'string') throw new Error('Cvičebný text repliky nie je platný.');
     }
   }

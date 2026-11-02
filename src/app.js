@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=34';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=35';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=34';
-import { parseText, PARSER_VERSION } from './parser.js?v=34';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=34';
-import { fingerprintScript } from './script-importer.js?v=34';
-import { readDocxParagraphs } from './docx-reader.js?v=34';
+} from './learning-engine.js?v=35';
+import { parseText, PARSER_VERSION } from './parser.js?v=35';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=35';
+import { fingerprintScript } from './script-importer.js?v=35';
+import { readDocxParagraphs } from './docx-reader.js?v=35';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=34';
+} from './scene-learning-engine.js?v=35';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=34';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=34';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=34';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=34';
+} from './storage.js?v=35';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=35';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=35';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=35';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -40,9 +40,10 @@ import {
   scriptOwnSpeeches,
   scriptProgress,
   setScriptFocus,
+  setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=34';
+} from './script-game.js?v=35';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -455,8 +456,38 @@ function scriptSectionTitle(game, id) {
   return game.script.sections.find(section => section.id === id)?.title ?? 'Začiatok';
 }
 
+function toggleScriptSpeechHidden(gameId, speechId, hidden) {
+  const game = findGame(gameId);
+  const speech = game?.script.speeches.find(item => item.id === speechId);
+  if (!speech) return;
+  const previous = { hidden: speech.hidden, dailyTargets: JSON.parse(JSON.stringify(game.dailyTargets)), updatedAt: game.updatedAt };
+  if (!setScriptSpeechHiddenById(appData.games, gameId, speechId, hidden, localDateKey()) || !persist()) {
+    speech.hidden = previous.hidden;
+    game.dailyTargets = previous.dailyTargets;
+    game.updatedAt = previous.updatedAt;
+    byId('scriptGameMessage').textContent = 'Zmenu sa nepodarilo uložiť. Skús to znova.';
+    byId('scriptGameMessage').classList.add('error');
+    return;
+  }
+  byId('scriptGameMessage').textContent = '';
+  byId('scriptGameMessage').classList.remove('error');
+  renderScriptGame(true);
+  requestAnimationFrame(() => byId(`script-speech-${speechId}`)?.querySelector(hidden ? '.script-restore-speech' : '.script-hide-speech')?.focus({ preventScroll: true }));
+}
+
 function renderScriptSpeech(game, speech, targetIds) {
   const own = speech.speaker === game.character;
+  if (speech.hidden) {
+    const row = element('article', `script-speech script-speech-collapsed ${own ? 'own-script-speech' : 'partner-script-speech'}`);
+    row.id = `script-speech-${speech.id}`;
+    row.append(element('span', 'script-hidden-label', `Skrytá replika · ${speech.speaker}`));
+    const restore = element('button', 'text-button script-restore-speech', 'Obnoviť');
+    restore.type = 'button';
+    restore.setAttribute('aria-label', `Obnoviť repliku ${speech.order + 1} postavy ${speech.speaker} v scenári`);
+    restore.addEventListener('click', () => toggleScriptSpeechHidden(game.id, speech.id, false));
+    row.append(restore);
+    return row;
+  }
   const learned = Boolean(speech.learnedAt);
   const revealed = allScriptLinesRevealed || revealedScriptSpeechIds.has(speech.id);
   const row = element('article', `script-speech${own ? ' own-script-speech' : ' partner-script-speech'}${learned ? ' learned' : ''}${targetIds.has(speech.id) ? ' today-target' : ''}`);
@@ -545,7 +576,7 @@ function renderScriptSpeech(game, speech, targetIds) {
     memorize.addEventListener('click', () => openMemorizer({ kind: 'game', gameId: game.id, speechId: speech.id }));
     controls.append(memorize);
     if (revealed) {
-      const hide = element('button', 'text-button', 'Skryť repliku'); hide.type = 'button';
+      const hide = element('button', 'text-button', 'Zakryť text'); hide.type = 'button';
       hide.addEventListener('click', () => { revealedScriptSpeechIds.delete(speech.id); allScriptLinesRevealed = false; renderScriptGame(true); });
       controls.append(hide);
     }
@@ -568,6 +599,16 @@ function renderScriptSpeech(game, speech, targetIds) {
     });
     controls.append(checkbox, knownText); row.append(controls);
   }
+  const visibility = element('button', 'text-button script-hide-speech', 'Schovať zo scenára');
+  visibility.type = 'button';
+  visibility.setAttribute('aria-label', `Schovať repliku ${speech.order + 1} postavy ${speech.speaker} zo scenára`);
+  visibility.addEventListener('click', () => toggleScriptSpeechHidden(game.id, speech.id, true));
+  if (own) row.querySelector('.script-speech-controls').append(visibility);
+  else {
+    const controls = element('div', 'script-speech-controls partner-script-controls');
+    controls.append(visibility);
+    row.append(controls);
+  }
   return row;
 }
 
@@ -585,7 +626,7 @@ function renderScriptGame(keepScroll = false) {
   const progress = scriptProgress(game); const pace = scriptDailyPace(game, today);
   byId('scriptGameHeading').textContent = game.title;
   byId('scriptGameMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
-  byId('scriptProgressLabel').textContent = `${progress.learned} z ${progress.total} replík · ${progress.percent} %`;
+  byId('scriptProgressLabel').textContent = `${progress.learned} z ${progress.total} ${progress.total === 1 ? 'repliky' : 'replík'} · ${progress.percent} %`;
   byId('scriptPaceLabel').textContent = pace.impossible ? 'Termín už nie je možné stihnúť bez zmeny.' : `${pace.availableDays} dní · približne ${pace.requiredMinutes} min denne`;
   byId('scriptPaceLabel').classList.toggle('error', pace.impossible);
   byId('scriptProgressBar').style.width = `${progress.percent}%`;
@@ -1689,5 +1730,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=34', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=35', { updateViaCache: 'none' }).catch(() => {});
 }

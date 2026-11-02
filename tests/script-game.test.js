@@ -8,6 +8,7 @@ import {
   scriptDailyPace,
   scriptProgress,
   setScriptFocus,
+  setScriptSpeechHiddenById,
   setScriptSpeechLearned,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
@@ -268,4 +269,54 @@ test('poznámka podľa ID sa uloží iba k vlastnej replike v aktuálnej kópii 
   assert.equal(setScriptSpeechNoteById(currentGames, staleGame.id, partnerSpeech.id, 'Nemá sa uložiť.'), false);
   assert.equal(currentGames[0].script.speeches.find(speech => speech.id === ownSpeech.id).note, 'Vstať a prejsť doprava.');
   assert.equal(staleGame.script.speeches.find(speech => speech.id === ownSpeech.id).note, '');
+});
+
+test('schovanie vlastnej repliky ju vyradí z progresu a plánu, obnovenie ju vráti', () => {
+  const game = makeGame({ deadline: '2026-08-20' });
+  const own = game.script.speeches.filter(speech => speech.speaker === 'TULÁK');
+  const today = '2026-08-12';
+  const target = ensureDailyTarget(game, today);
+  assert.ok(target.speechIds.includes(own[0].id));
+  const beforeMinutes = scriptDailyPace(game, today).remainingMinutes;
+  game.dailyTargets['2026-08-11'] = { speechIds: [own[0].id], createdAt: '2026-08-11T08:00:00.000Z' };
+  game.dailyTargets['2026-08-13'] = { speechIds: [own[0].id], createdAt: '2026-08-13T08:00:00.000Z' };
+
+  assert.equal(setScriptSpeechHiddenById([game], game.id, own[0].id, true, today), true);
+  assert.equal(own[0].hidden, true);
+  assert.deepEqual(scriptProgress(game), { learned: 0, total: 2, percent: 0 });
+  assert.ok(scriptDailyPace(game, today).remainingMinutes < beforeMinutes);
+  assert.ok(!game.dailyTargets[today]?.speechIds.includes(own[0].id));
+  assert.ok(ensureDailyTarget(game, today).speechIds.every(id => id !== own[0].id));
+  assert.deepEqual(game.dailyTargets['2026-08-11'].speechIds, [own[0].id]);
+  assert.deepEqual(game.dailyTargets['2026-08-13'].speechIds, []);
+
+  assert.equal(setScriptSpeechHiddenById([game], game.id, own[0].id, false, today), true);
+  assert.equal(own[0].hidden, false);
+  assert.deepEqual(scriptProgress(game), { learned: 0, total: 3, percent: 0 });
+});
+
+test('po obnovení poslednej skrytej vlastnej repliky vznikne nový dnešný cieľ', () => {
+  const game = makeGame();
+  const today = '2026-08-12';
+  const own = game.script.speeches.filter(speech => speech.speaker === 'TULÁK');
+  ensureDailyTarget(game, today);
+  for (const speech of own) setScriptSpeechHiddenById([game], game.id, speech.id, true, today);
+  assert.deepEqual(ensureDailyTarget(game, today).speechIds, []);
+  assert.equal(scriptProgress(game).total, 0);
+
+  setScriptSpeechHiddenById([game], game.id, own[0].id, false, today);
+  assert.deepEqual(ensureDailyTarget(game, today).speechIds, [own[0].id]);
+});
+
+test('schovanie partnerovej repliky nemení plán ani vlastný progres', () => {
+  const game = makeGame();
+  const partner = game.script.speeches.find(speech => speech.speaker === 'CHROBÁK');
+  const before = structuredClone(ensureDailyTarget(game, '2026-08-12'));
+  const progress = scriptProgress(game);
+
+  assert.equal(setScriptSpeechHiddenById([game], game.id, partner.id, true, '2026-08-12'), true);
+  assert.equal(partner.hidden, true);
+  assert.deepEqual(game.dailyTargets['2026-08-12'], before);
+  assert.deepEqual(scriptProgress(game), progress);
+  assert.equal(setScriptSpeechHiddenById([game], game.id, 'missing', true, '2026-08-12'), false);
 });

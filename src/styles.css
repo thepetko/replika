@@ -810,6 +810,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .own-script-speech { border: 1px solid transparent; border-radius: var(--radius-large); background: var(--paper); }
 .own-script-speech.today-target { border-color: var(--accent-strong); outline: 0; box-shadow: 0 .45rem 1.2rem rgb(170 123 50 / 12%); }
 .own-script-speech.learned { border-color: var(--accent); background: #f6efe3; }
+.script-speech-collapsed { display: flex; width: min(82%, 40ch); align-items: center; justify-content: space-between; gap: .75rem; margin-block: .75rem; padding: .35rem .55rem .35rem .85rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper); color: var(--muted); font-size: .8rem; }
+.script-speech-collapsed.own-script-speech { border-color: var(--line); background: var(--paper); }
+.script-hidden-label { min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.script-restore-speech { flex: 0 0 auto; min-height: 2.5rem; padding: .35rem .55rem; font-size: .8rem; }
+.script-hide-speech { min-height: 2.5rem; padding: .35rem .55rem; color: var(--muted); font-size: .8rem; }
+.partner-script-controls { justify-content: flex-start; margin-top: .25rem; }
 .script-mask { border-radius: var(--radius-small); background: var(--warm-beige); color: #56462e; }
 .script-mask:hover { background: #ded5c5; }
 .script-known-checkbox { accent-color: var(--accent-strong); }
