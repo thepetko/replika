@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=38';
+import { availableDates, estimateMinutes } from './game-plan.js?v=39';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
@@ -188,6 +188,10 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
 export function scriptOwnSpeeches(game) {
   const character = normalizeSpeaker(game?.character);
   return (game?.script?.speeches ?? []).filter(speech => normalizeSpeaker(speech.speaker) === character && !speech.hidden);
+}
+
+export function scriptEntriesInSection(script, sectionId) {
+  return script.entries.filter(entry => entry.sectionId === sectionId);
 }
 
 export function scriptProgress(game) {

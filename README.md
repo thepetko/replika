@@ -23,7 +23,7 @@ Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho 
 
 ## Navigácia
 
-Po otvorení aplikácie sa zobrazia hry. Otvorená hra je jeden súvislý scenár s progresom, dnešným cieľom a ovládaním masiek. Knižnica samostatných replík a scén je dostupná z karty **Učiť repliku** cez **Uložené texty**.
+Po otvorení aplikácie sa zobrazia hry. Otvorená hra zobrazuje vždy jednu časť scenára v pôvodnom poradí. Dejstvá a scény sa prepínajú v ukotvenom hornom paneli; progres, dnešný cieľ a ovládanie masiek zostávajú dostupné. Knižnica samostatných replík a scén je dostupná z karty **Učiť repliku** cez **Uložené texty**.
 
 Karta **Učiť repliku** umožňuje vložiť samostatný text a precvičovať ho podľa prvých 1–3 písmen alebo slov. V **Nastaveniach zobrazenia** prepína rozostupy; slová, riadky aj celý text možno odkrývať a znovu zakrývať. Cvičebný text sa ukladá lokálne a je súčasťou JSON zálohy. Rovnaké rozhranie otvoríš z každej vlastnej repliky v importovanom scenári tlačidlom **Učiť túto repliku** alebo zo samostatného textu v knižnici. Úprava cvičebnej verzie nemení pôvodný scenár ani uložený text.
 

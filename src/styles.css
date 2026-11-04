@@ -29,7 +29,7 @@ FORM: Operate režim podľa dodaného Replika Design System v1.0; jeho tokeny s�
 
 * { box-sizing: border-box; }
 
-html { background: var(--ivory); scroll-behavior: smooth; }
+html { background: var(--ivory); scroll-behavior: auto; }
 
 body {
   margin: 0;
@@ -917,18 +917,22 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 /* Čítanie scenára má prednosť pred ovládacími plochami. */
 .script-game-heading { margin-bottom: .15rem; padding-block: .8rem; }
 .script-toolbar {
-  position: static;
+  position: sticky;
+  z-index: 8;
+  top: 5.25rem;
   margin: 0;
   padding: .35rem 0 .55rem;
   border: 0;
+  border-bottom: 1px solid var(--line);
   border-radius: 0;
-  background: transparent;
+  background: var(--ivory);
   box-shadow: none;
 }
 .script-toolbar-main { grid-template-columns: minmax(0, 1fr) auto; gap: .5rem 1rem; }
 .script-toolbar-actions { display: flex; justify-content: flex-end; }
 .script-section-jump { width: 11.5rem; }
 .script-progress { margin-top: .45rem; }
+.script-document { scroll-margin-top: 9rem; }
 .script-today {
   margin: 0 0 .25rem;
   padding: .55rem 0 .7rem;
@@ -974,6 +978,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-instruction { margin: .55rem 0 .8rem; font-size: .88rem; }
 .memorizer-lines { line-height: 1.6; }
 .memorizer-lines:not(.compact) .memorizer-word { display: inline-block; min-width: 2.75rem; min-height: 2.75rem; padding: .08rem .12rem; vertical-align: baseline; }
+.memorizer-lines:not(.compact) .memorizer-word { margin-inline: .2em; }
+.memorizer-lines.compact { padding: .6rem .8rem; border: 1px solid var(--line); background: var(--surface); line-height: 1.45; }
+.memorizer-lines.compact .memorizer-line { margin: 0 0 .45rem; }
+.memorizer-lines.compact .memorizer-word { display: inline-block; min-width: 2.75rem; min-height: 2.75rem; margin: 0; padding: 0 .02em; vertical-align: baseline; }
+.memorizer-lines.compact .memorizer-line-toggle { margin-top: 0; }
 .memorizer-line-toggle { min-height: 2.75rem; }
 
 #gamesView > .page-heading, #libraryView > .page-heading { padding-top: 1.5rem; }
@@ -982,14 +991,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 
 @media (max-width: 720px) {
   .script-game-heading { padding-block: .65rem; }
-  .script-toolbar { margin-inline: 0; }
+  .script-toolbar { top: 4.75rem; margin-inline: 0; }
   .script-toolbar-main { grid-template-columns: 1fr; }
   .script-toolbar-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: stretch; }
   .script-toolbar-actions button { padding-inline: .65rem; }
   .script-section-jump { width: auto; grid-column: auto; }
   .script-today { align-items: center; flex-direction: row; }
   .script-today .secondary { width: auto; }
-  .script-document { margin-inline: 0; padding: 1rem; }
+  .script-document { margin-inline: 0; padding: 1rem; scroll-margin-top: 12rem; }
   .script-section-heading { align-items: center; flex-direction: row; margin-top: 2rem; scroll-margin-top: 1rem; }
   .script-section-heading button { width: auto; }
   .script-speech { scroll-margin-top: 1rem; }

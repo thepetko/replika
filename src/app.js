@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=38';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=39';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=38';
-import { parseText, PARSER_VERSION } from './parser.js?v=38';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=38';
-import { fingerprintScript } from './script-importer.js?v=38';
-import { readDocxParagraphs } from './docx-reader.js?v=38';
+} from './learning-engine.js?v=39';
+import { parseText, PARSER_VERSION } from './parser.js?v=39';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=39';
+import { fingerprintScript } from './script-importer.js?v=39';
+import { readDocxParagraphs } from './docx-reader.js?v=39';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=38';
+} from './scene-learning-engine.js?v=39';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,15 +27,16 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=38';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=38';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=38';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=38';
+} from './storage.js?v=39';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=39';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=39';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=39';
 import {
   ensureDailyTarget,
   extendDailyTarget,
   isDailyTargetComplete,
   parseScriptDocument,
+  scriptEntriesInSection,
   scriptDailyPace,
   scriptOwnSpeeches,
   scriptProgress,
@@ -43,7 +44,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=38';
+} from './script-game.js?v=39';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -60,6 +61,7 @@ let storageHealthy = true;
 let currentView = 'games';
 let currentRehearsalId = null;
 let currentGameId = null;
+let visibleScriptSectionId = null;
 let editingRehearsalId = null;
 let editingType = 'rehearsal';
 let activeLibraryTab = 'rehearsal';
@@ -454,10 +456,6 @@ async function deleteGame(id) {
   renderGames();
 }
 
-function scriptEntryById(game, id) {
-  return game.script.entries.find(entry => entry.id === id);
-}
-
 function scriptSectionTitle(game, id) {
   return game.script.sections.find(section => section.id === id)?.title ?? 'Začiatok';
 }
@@ -478,10 +476,10 @@ function toggleScriptSpeechHidden(gameId, speechId, hidden) {
   byId('scriptGameMessage').textContent = '';
   byId('scriptGameMessage').classList.remove('error');
   renderScriptGame(true);
-  requestAnimationFrame(() => byId(`script-speech-${speechId}`)?.querySelector(hidden ? '.script-restore-speech' : '.script-hide-speech')?.focus({ preventScroll: true }));
+  requestAnimationFrame(() => byId(`script-speech-${speechId}`)?.querySelector(hidden ? '.script-restore-speech' : '.script-speech-menu summary')?.focus({ preventScroll: true }));
 }
 
-function renderScriptSpeech(game, speech, targetIds) {
+function renderScriptSpeech(game, speech, targetIds, entryById, sectionTitle) {
   const own = speech.speaker === game.character;
   if (speech.hidden) {
     const row = element('article', `script-speech script-speech-collapsed ${own ? 'own-script-speech' : 'partner-script-speech'}`);
@@ -515,7 +513,7 @@ function renderScriptSpeech(game, speech, targetIds) {
   const textWrap = element('div', `script-speech-text${own && !revealed ? ' masked' : ''}`);
   const copy = element('div', 'script-speech-copy');
   copy.setAttribute('aria-hidden', String(own && !revealed));
-  for (const entryId of speech.entryIds) copy.append(element('p', '', scriptEntryById(game, entryId)?.text ?? ''));
+  for (const entryId of speech.entryIds) copy.append(element('p', '', entryById.get(entryId)?.text ?? ''));
   textWrap.append(copy);
   if (own && !revealed) {
     const reveal = element('button', 'script-mask', 'Odkryť repliku'); reveal.type = 'button';
@@ -563,7 +561,7 @@ function renderScriptSpeech(game, speech, targetIds) {
           return;
         }
         noteAction.textContent = next ? 'Upraviť poznámku' : 'Pridať poznámku';
-        noteAction.setAttribute('aria-label', `${noteAction.textContent} k replike v časti ${scriptSectionTitle(game, speech.sectionId)}`);
+        noteAction.setAttribute('aria-label', `${noteAction.textContent} k replike v časti ${sectionTitle}`);
         if (next) renderNoteView(); else renderNotePrompt();
       };
       save.addEventListener('click', saveNote);
@@ -578,7 +576,7 @@ function renderScriptSpeech(game, speech, targetIds) {
     row.append(note);
     const noteAction = element('button', '', speech.note ? 'Upraviť poznámku' : 'Pridať poznámku');
     noteAction.type = 'button';
-    noteAction.setAttribute('aria-label', `${noteAction.textContent} k replike v časti ${scriptSectionTitle(game, speech.sectionId)}`);
+    noteAction.setAttribute('aria-label', `${noteAction.textContent} k replike v časti ${sectionTitle}`);
     noteAction.addEventListener('click', () => { menu.removeAttribute('open'); renderNoteEditor(); note.querySelector('textarea')?.focus(); });
     menuContent.prepend(noteAction);
     const controls = element('div', 'script-speech-controls');
@@ -593,7 +591,7 @@ function renderScriptSpeech(game, speech, targetIds) {
       controls.append(hide);
     }
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = learned;
-    checkbox.className = 'script-known-checkbox'; checkbox.setAttribute('aria-label', `Viem repliku v časti ${scriptSectionTitle(game, speech.sectionId)}`);
+    checkbox.className = 'script-known-checkbox'; checkbox.setAttribute('aria-label', `Viem repliku v časti ${sectionTitle}`);
     const knownText = element('span', 'script-known-label', 'Viem');
     checkbox.addEventListener('change', () => {
       const currentSpeech = findGame(game.id)?.script.speeches.find(item => item.id === speech.id);
@@ -666,16 +664,30 @@ function renderScriptGame(keepScroll = false) {
     daysOff.append(remove);
   }
 
-  const select = byId('scriptSectionSelect'); select.replaceChildren(new Option('Vyber časť', ''));
-  for (const section of game.script.sections.filter(item => item.headingEntryId)) select.append(new Option(section.title, section.id));
+  const sectionIds = new Set(game.script.entries.map(entry => entry.sectionId));
+  const sections = game.script.sections.filter(section => sectionIds.has(section.id));
+  if (!sections.some(section => section.id === visibleScriptSectionId)) {
+    const firstTarget = game.script.speeches.find(speech => speech.id === target.speechIds[0]);
+    visibleScriptSectionId = game.focusSectionId && sectionIds.has(game.focusSectionId)
+      ? game.focusSectionId
+      : firstTarget?.sectionId ?? sections[0]?.id ?? null;
+  }
+  const select = byId('scriptSectionSelect'); select.replaceChildren();
+  for (const [index, section] of sections.entries()) select.append(new Option(`${index + 1}/${sections.length} · ${section.title}`, section.id));
+  select.value = visibleScriptSectionId ?? '';
   const documentBox = byId('scriptDocument'); documentBox.replaceChildren();
+  const sectionTitle = scriptSectionTitle(game, visibleScriptSectionId);
+  documentBox.setAttribute('aria-label', `Scenár · ${sectionTitle}`);
+  const entryById = new Map(game.script.entries.map(entry => [entry.id, entry]));
+  const speechById = new Map(game.script.speeches.map(speech => [speech.id, speech]));
   const renderedSpeeches = new Set();
-  for (const entry of game.script.entries) {
+  const fragment = document.createDocumentFragment();
+  for (const entry of scriptEntriesInSection(game.script, visibleScriptSectionId)) {
     if (entry.speechId) {
       if (renderedSpeeches.has(entry.speechId)) continue;
       renderedSpeeches.add(entry.speechId);
-      const speech = game.script.speeches.find(item => item.id === entry.speechId);
-      if (speech) documentBox.append(renderScriptSpeech(game, speech, targetIds));
+      const speech = speechById.get(entry.speechId);
+      if (speech) fragment.append(renderScriptSpeech(game, speech, targetIds, entryById, sectionTitle));
       continue;
     }
     if (entry.type === 'heading') {
@@ -687,20 +699,21 @@ function renderScriptGame(keepScroll = false) {
         focus.addEventListener('click', () => { setScriptFocus(game, entry.sectionId, today, nowIso()); persist(); renderScriptGame(true); });
         heading.append(focus);
       }
-      documentBox.append(heading);
+      fragment.append(heading);
     } else if (entry.type === 'direction') {
-      documentBox.append(element('p', 'script-direction', entry.rawText));
+      fragment.append(element('p', 'script-direction', entry.rawText));
     } else {
-      documentBox.append(element('p', `script-prose${entry.ambiguous ? ' ambiguous' : ''}`, entry.rawText));
+      fragment.append(element('p', `script-prose${entry.ambiguous ? ' ambiguous' : ''}`, entry.rawText));
     }
   }
+  documentBox.append(fragment);
   if (keepScroll) requestAnimationFrame(() => globalThis.scrollTo({ top: scrollTop, behavior: 'auto' }));
 }
 
 function openGame(id) {
   const game = findGame(id); if (!game) return showGames();
   const changedGame = currentGameId !== id;
-  if (changedGame) { revealedScriptSpeechIds.clear(); allScriptLinesRevealed = false; }
+  if (changedGame) { revealedScriptSpeechIds.clear(); allScriptLinesRevealed = false; visibleScriptSectionId = null; }
   currentGameId = id;
   showView('scriptGame'); renderScriptGame();
   if (changedGame) requestAnimationFrame(() => globalThis.scrollTo({ top: 0, behavior: 'auto' }));
@@ -1554,6 +1567,8 @@ byId('memorizerBackBtn').addEventListener('click', () => {
   const source = memorizerSource;
   if (source?.kind === 'rehearsal') return showLibrary();
   if (!source || source.kind !== 'game') return showGames();
+  const game = findGame(source.gameId);
+  visibleScriptSectionId = game?.script.speeches.find(speech => speech.id === source.speechId)?.sectionId ?? visibleScriptSectionId;
   openGame(source.gameId);
   requestAnimationFrame(() => byId(`script-speech-${source.speechId}`)?.scrollIntoView({ block: 'center', behavior: 'auto' }));
 });
@@ -1644,14 +1659,22 @@ byId('toggleAllScriptLinesBtn').addEventListener('click', () => { allScriptLines
 byId('goToTodayTargetBtn').addEventListener('click', () => {
   const game = findGame(currentGameId); const target = game?.dailyTargets?.[localDateKey()];
   const id = target?.speechIds.find(speechId => !game.script.speeches.find(speech => speech.id === speechId)?.learnedAt) ?? target?.speechIds[0];
-  const node = id ? byId(`script-speech-${id}`) : byId('scriptTodayPanel');
-  node?.scrollIntoView({ block: 'center', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  node?.focus?.({ preventScroll: true });
+  const sectionId = game?.script.speeches.find(speech => speech.id === id)?.sectionId;
+  if (sectionId && sectionId !== visibleScriptSectionId) {
+    visibleScriptSectionId = sectionId;
+    renderScriptGame();
+  }
+  requestAnimationFrame(() => {
+    const node = id ? byId(`script-speech-${id}`) : byId('scriptTodayPanel');
+    node?.scrollIntoView({ block: 'center', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    node?.focus?.({ preventScroll: true });
+  });
 });
 byId('scriptSectionSelect').addEventListener('change', event => {
-  if (!event.target.value) return;
-  byId(`script-section-${event.target.value}`)?.scrollIntoView({ block: 'start', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  event.target.value = '';
+  if (!event.target.value || event.target.value === visibleScriptSectionId) return;
+  visibleScriptSectionId = event.target.value;
+  renderScriptGame();
+  requestAnimationFrame(() => byId('scriptDocument').scrollIntoView({ block: 'start', behavior: 'auto' }));
 });
 byId('scriptGameDeadline').addEventListener('change', event => {
   const game = findGame(currentGameId); if (!game || !event.target.value) return;
@@ -1764,5 +1787,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=38', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=39', { updateViaCache: 'none' }).catch(() => {});
 }

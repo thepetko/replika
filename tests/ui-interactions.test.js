@@ -73,7 +73,7 @@ test('ovládanie scenára necháva pomocné voľby mimo hlavnej lišty', () => {
   const settings = html.slice(html.indexOf('class="optional-fields script-settings"'), html.indexOf('id="scriptDocument"'));
   assert.match(toolbar, /class="script-toolbar-main"/u);
   assert.match(toolbar, />Prejsť k replike</u);
-  assert.match(toolbar, /aria-label="Prejsť na časť scenára"/u);
+  assert.match(toolbar, /aria-label="Zobraziť časť scenára"/u);
   assert.doesNotMatch(toolbar, />Odkryť repliky</u);
   assert.match(settings, />Odkryť repliky</u);
 });

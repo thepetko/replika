@@ -5,6 +5,7 @@ import {
   ensureDailyTarget,
   extendDailyTarget,
   parseScriptDocument,
+  scriptEntriesInSection,
   scriptDailyPace,
   scriptProgress,
   setScriptFocus,
@@ -45,6 +46,13 @@ test('import zachová každý odsek presne raz a v pôvodnom poradí', () => {
   assert.equal(new Set(script.entries.map(entry => entry.id)).size, paragraphs.length);
   assert.equal(script.entries[6].type, 'continuation');
   assert.equal(script.entries[6].ambiguous, false);
+});
+
+test('zobrazenie jedného dejstva zachová odseky a celé repliky v poradí', () => {
+  const script = parseScriptDocument(paragraphs);
+  assert.deepEqual(scriptEntriesInSection(script, script.sections[1].id).map(entry => entry.sourceIndex), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(scriptEntriesInSection(script, script.sections[2].id).map(entry => entry.sourceIndex), [7, 8, 9, 10]);
+  assert.equal(scriptEntriesInSection(script, script.sections[1].id).filter(entry => entry.speechId === script.speeches[1].id).length, 3);
 });
 
 test('pokračovanie odseku zostane v jednej samostatnej replike postavy', () => {
