@@ -931,6 +931,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .script-section-jump { width: 11.5rem; }
 .script-progress { margin-top: .45rem; }
 .script-document { scroll-margin-top: 9rem; }
+.script-cast-heading { margin: 1.3rem 0 .35rem; color: var(--muted); font-family: Inter, Arial, sans-serif; font-size: .82rem; font-weight: 800; }
+.script-cast-name { display: inline-block; margin: .1rem 1rem .1rem 0; color: var(--muted); font-size: .88rem; }
 .script-today {
   margin: 0 0 .25rem;
   padding: .55rem 0 .7rem;

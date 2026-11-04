@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=40';
+import { availableDates, estimateMinutes } from './game-plan.js?v=41';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
@@ -204,8 +204,12 @@ export function collapseCastListSections(script) {
     firstStyledSection < 0 ? entries.length : firstStyledSection,
     firstBodyMarker < 0 ? entries.length : firstBodyMarker
   );
-  for (let index = castIndex + 1; index < castEnd; index += 1) {
-    if (entries[index].type === 'unknown') entries[index].ambiguous = false;
+  for (let index = castIndex; index < castEnd; index += 1) {
+    const entry = entries[index];
+    if (entry.type === 'heading' || entry.type === 'unknown' || entry.type === 'castHeading' || entry.type === 'castName') {
+      entry.type = CAST_LIST_HEADING.test(cleanText(entry.rawText)) || STRUCTURE_HEADING.test(cleanText(entry.rawText)) ? 'castHeading' : 'castName';
+      entry.ambiguous = false;
+    }
   }
   const entryPosition = new Map(entries.map((entry, index) => [entry.id, index]));
   const removedIds = new Set((script.sections ?? [])

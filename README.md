@@ -44,7 +44,7 @@ Nástroj ukáže rozpoznané postavy, vyberieš svoju a učíš sa vlastné repl
 
 Na obrazovke **Hry** zvoľ **Importovať scenár** a vyber DOCX. Po výbere postavy Replika zachová všetky odseky v pôvodnom poradí. Vlastné repliky môžeš jednotlivo alebo hromadne zakrývať a označovať ako zvládnuté.
 
-Úvodný zoznam postáv a dejstiev zostáva v časti **Začiatok**; názvy dejstiev v tomto zozname nevytvárajú ďalšie časti. Oprava sa uplatní aj pri už importovaných hrách bez zmeny identity replík a ich progresu.
+Úvodný zoznam postáv a dejstiev zostáva v časti **Začiatok** ako kompaktné obsadenie; názvy dejstiev v tomto zozname nevytvárajú ďalšie časti. Oprava sa uplatní aj pri už importovaných hrách bez zmeny identity replík a ich progresu.
 
 Každú vlastnú aj partnerovu repliku môžeš v scenári schovať. Na jej mieste zostane úzky riadok s menom postavy a tlačidlom **Obnoviť**. Text a poznámky sa nevymažú; skryté vlastné repliky sa nezapočítavajú do progresu a ďalšieho plánu učenia.
 

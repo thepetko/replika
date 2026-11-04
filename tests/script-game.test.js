@@ -69,6 +69,9 @@ test('zoznam postáv v úvode nevytvára falošné dejstvá a zachová prológ',
   assert.deepEqual(script.speeches.map(speech => speech.sectionId), ['section-start', 'section-9', 'section-11']);
   assert.equal(script.entries.length, source.length);
   assert.equal(script.entries.filter(entry => entry.ambiguous).length, 0);
+  assert.equal(script.entries[0].type, 'castHeading');
+  assert.equal(script.entries[2].type, 'castHeading');
+  assert.equal(script.entries[3].type, 'castName');
 
   const stored = parseScriptDocument([{ text: 'Zoznam osôb' }, ...source.slice(1)]);
   stored.entries[0].rawText = 'OSOBY';
@@ -78,6 +81,7 @@ test('zoznam postáv v úvode nevytvára falošné dejstvá a zachová prológ',
   assert.equal(removed.size, 3);
   assert.deepEqual(stored.sections.map(section => section.title), script.sections.map(section => section.title));
   assert.deepEqual(stored.speeches.map(speech => speech.sectionId), script.speeches.map(speech => speech.sectionId));
+  assert.equal(stored.entries[2].type, 'castHeading');
   assert.equal(stored.speeches[0].learnedAt, '2026-11-01T10:00:00.000Z');
   assert.equal(stored.speeches[0].note, 'Vstup na scénu');
 });

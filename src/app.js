@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=40';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=41';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=40';
-import { parseText, PARSER_VERSION } from './parser.js?v=40';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=40';
-import { fingerprintScript } from './script-importer.js?v=40';
-import { readDocxParagraphs } from './docx-reader.js?v=40';
+} from './learning-engine.js?v=41';
+import { parseText, PARSER_VERSION } from './parser.js?v=41';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=41';
+import { fingerprintScript } from './script-importer.js?v=41';
+import { readDocxParagraphs } from './docx-reader.js?v=41';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=40';
+} from './scene-learning-engine.js?v=41';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=40';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=40';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken, visibleWordHint } from './memorizer.js?v=40';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=40';
+} from './storage.js?v=41';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=41';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken, visibleWordHint } from './memorizer.js?v=41';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=41';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -45,7 +45,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=40';
+} from './script-game.js?v=41';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -702,7 +702,9 @@ function renderScriptGame(keepScroll = false) {
       if (speech) fragment.append(renderScriptSpeech(game, speech, targetIds, entryById, sectionTitle));
       continue;
     }
-    if (entry.type === 'heading') {
+    if (entry.type === 'castHeading' || entry.type === 'castName') {
+      fragment.append(element('p', entry.type === 'castHeading' ? 'script-cast-heading' : 'script-cast-name', entry.rawText));
+    } else if (entry.type === 'heading') {
       const heading = element('section', 'script-section-heading'); heading.id = `script-section-${entry.sectionId}`;
       heading.append(element('h2', '', entry.text));
       if (game.script.sections.some(section => section.id === entry.sectionId && section.headingEntryId === entry.id)) {
@@ -1801,5 +1803,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=40', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=41', { updateViaCache: 'none' }).catch(() => {});
 }
