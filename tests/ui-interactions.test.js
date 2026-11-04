@@ -67,13 +67,15 @@ test('hra má jednu obrazovku bez paralelných tabov', () => {
   assert.doesNotMatch(view, /role="tablist"/u);
 });
 
-test('ovládanie scenára používa kompaktnú spoločnú lištu', () => {
+test('ovládanie scenára necháva pomocné voľby mimo hlavnej lišty', () => {
   const html = readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
   const toolbar = html.slice(html.indexOf('class="script-toolbar"'), html.indexOf('id="scriptTodayPanel"'));
+  const settings = html.slice(html.indexOf('class="optional-fields script-settings"'), html.indexOf('id="scriptDocument"'));
   assert.match(toolbar, /class="script-toolbar-main"/u);
   assert.match(toolbar, />Prejsť k replike</u);
-  assert.match(toolbar, />Odkryť repliky</u);
   assert.match(toolbar, /aria-label="Prejsť na časť scenára"/u);
+  assert.doesNotMatch(toolbar, />Odkryť repliky</u);
+  assert.match(settings, />Odkryť repliky</u);
 });
 
 test('import novej hry ponúka iba DOCX a nevytvára učebné úseky', () => {

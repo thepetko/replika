@@ -551,11 +551,7 @@ textarea { min-height: 13rem; resize: vertical; line-height: 1.6; }
 .script-mask { position: absolute; inset: 0; width: 100%; min-height: 100%; border: 0; border-radius: .65rem; background: #dce6e1; color: #274f43; }
 .script-mask:hover { border: 0; background: #d2dfd9; }
 .script-speech-note { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--stone); }
-.script-add-note { min-height: 2.75rem; padding-inline: 0; color: var(--muted); font-size: .9rem; }
-.script-note-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .script-note-label { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .78rem; font-weight: 700; }
-.script-note-heading .script-note-label { margin-bottom: 0; }
-.script-note-edit { min-height: 2.5rem; padding: .25rem 0 .25rem .75rem; color: var(--muted); font-size: .82rem; }
 .script-note-copy { margin: .25rem 0 0; white-space: pre-wrap; color: var(--ink); line-height: 1.5; }
 .script-note-input { display: block; width: 100%; min-height: 4.5rem; max-height: 12rem; resize: vertical; border-color: var(--stone); background: var(--surface); font: inherit; line-height: 1.5; }
 .script-note-input::placeholder { color: #76716a; }
@@ -818,7 +814,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .own-script-speech.learned { border-color: var(--accent); background: #f6efe3; }
 .script-speech-header { display: flex; min-height: 2.75rem; align-items: center; justify-content: space-between; gap: .75rem; margin: -.45rem 0 .2rem; }
 .script-speech-header .script-speaker { margin: 0; }
-.script-hide-speech { min-width: 4.5rem; min-height: 2.75rem; padding: .4rem .5rem; color: var(--muted); font-size: .8rem; }
 .script-speech-collapsed, .script-speech-collapsed.own-script-speech { width: min(92%, 58ch); margin-block: .75rem; padding: 0; border: 0; background: transparent; }
 .script-restore-speech { display: flex; width: 100%; min-height: 3rem; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .75rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper); color: var(--muted); font-size: .8rem; text-align: left; }
 .script-restore-speech:hover { border-color: var(--stone); background: var(--warm-beige); }
@@ -895,7 +890,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); font-weight: 700; }
 .memorizer-show-label select { min-height: 2.5rem; padding: .2rem .3rem; border: 0; box-shadow: none; cursor: pointer; }
 .memorizer-actions button { min-height: 2.7rem; padding: .45rem .8rem; font-weight: 600; }
-.memorizer-actions .memorizer-unavailable { visibility: hidden; }
 .memorizer-instruction { margin: 1.1rem 0 2rem; color: var(--muted); }
 .memorizer-lines { padding: 1.25rem; border-radius: var(--radius-medium); background: var(--paper); color: #684c21; font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.7; }
 .memorizer-lines.compact { padding: .25rem 0; background: transparent; }
@@ -918,4 +912,91 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .memorizer-switch { flex: 0 0 auto; }
   .memorizer-instruction { margin-bottom: 1.3rem; }
   .memorizer-lines { padding: .9rem; font-size: 1.45rem; }
+}
+
+/* Čítanie scenára má prednosť pred ovládacími plochami. */
+.script-game-heading { margin-bottom: .15rem; padding-block: .8rem; }
+.script-toolbar {
+  position: static;
+  margin: 0;
+  padding: .35rem 0 .55rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.script-toolbar-main { grid-template-columns: minmax(0, 1fr) auto; gap: .5rem 1rem; }
+.script-toolbar-actions { display: flex; justify-content: flex-end; }
+.script-section-jump { width: 11.5rem; }
+.script-progress { margin-top: .45rem; }
+.script-today {
+  margin: 0 0 .25rem;
+  padding: .55rem 0 .7rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.script-today-kicker { display: none; }
+.script-today h2 { font-family: Inter, Arial, sans-serif; font-size: .95rem; line-height: 1.3; }
+.script-today .muted-copy { color: var(--muted); font-size: .83rem; }
+.script-today .secondary { min-height: 2.65rem; }
+.script-settings { margin: 0 0 .85rem; border-bottom: 0; }
+.script-settings > summary { min-height: 2.6rem; padding: .45rem 0; color: var(--muted); font-size: .82rem; }
+.script-settings > #toggleAllScriptLinesBtn { margin: .3rem 0 .75rem; }
+.script-document { padding: clamp(1rem, 3vw, 2.25rem); box-shadow: none; }
+.script-section-heading { margin-top: 3rem; scroll-margin-top: 2rem; }
+.script-speech { margin-block: 1rem; scroll-margin-top: 2rem; }
+.own-script-speech { border: 0; border-radius: var(--radius-small); background: var(--paper); }
+.own-script-speech.today-target { border: 0; outline: 1px solid var(--accent-strong); outline-offset: 0; box-shadow: none; }
+.own-script-speech.learned { border: 0; background: var(--paper); }
+.script-speech-header { min-height: 2.55rem; }
+.script-speech:has(.script-speech-menu[open]) { z-index: 3; }
+.script-speech-menu > summary { display: grid; min-width: 3rem; min-height: 2.65rem; padding: .4rem; place-items: center; color: var(--muted); font-size: .8rem; }
+.script-speech-menu-panel { right: 0; left: auto; min-width: 11rem; }
+.script-speech-note:empty { display: none; }
+.script-speech-note { margin-top: .6rem; padding-top: .5rem; }
+.script-note-copy { color: var(--muted); font-size: .88rem; font-style: italic; }
+.script-known-control { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .4rem; cursor: pointer; }
+.script-known-checkbox { accent-color: var(--accent-strong); }
+.script-known-label { color: var(--ink); font-weight: 700; }
+
+/* Nastavenia repliky ustupujú textu, no zostávajú dostupné. */
+.memorizer-heading { margin-bottom: 1rem; padding: 1.65rem 0 1rem; }
+.memorizer-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .35rem; }
+.memorizer-heading-actions button { min-height: 2.75rem; padding: .45rem .8rem; font-size: .85rem; }
+.memorizer-card { min-height: 0; padding: clamp(1rem, 3vw, 1.7rem); }
+.memorizer-toolbar { align-items: flex-start; gap: .65rem; }
+.memorizer-options { gap: .45rem; }
+.memorizer-display-options { margin-top: .6rem; }
+.memorizer-display-options > summary { width: fit-content; min-height: 2.5rem; padding: .45rem 0; color: var(--muted); font-size: .82rem; cursor: pointer; }
+.memorizer-display-options .memorizer-switch { margin: .35rem 0 .2rem; }
+.memorizer-instruction { margin: .55rem 0 .8rem; font-size: .88rem; }
+.memorizer-lines { line-height: 1.6; }
+.memorizer-lines:not(.compact) .memorizer-word { display: inline-block; min-width: 2.75rem; min-height: 2.75rem; padding: .08rem .12rem; vertical-align: baseline; }
+.memorizer-line-toggle { min-height: 2.75rem; }
+
+#gamesView > .page-heading, #libraryView > .page-heading { padding-top: 1.5rem; }
+#scriptImportPanel .section-heading { align-items: start; }
+#scriptImportPanel .section-heading .field-help { margin-bottom: 0; }
+
+@media (max-width: 720px) {
+  .script-game-heading { padding-block: .65rem; }
+  .script-toolbar { margin-inline: 0; }
+  .script-toolbar-main { grid-template-columns: 1fr; }
+  .script-toolbar-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: stretch; }
+  .script-toolbar-actions button { padding-inline: .65rem; }
+  .script-section-jump { width: auto; grid-column: auto; }
+  .script-today { align-items: center; flex-direction: row; }
+  .script-today .secondary { width: auto; }
+  .script-document { margin-inline: 0; padding: 1rem; }
+  .script-section-heading { align-items: center; flex-direction: row; margin-top: 2rem; scroll-margin-top: 1rem; }
+  .script-section-heading button { width: auto; }
+  .script-speech { scroll-margin-top: 1rem; }
+  .memorizer-heading { align-items: start; gap: .55rem; padding: 1.5rem 0 .8rem; }
+  .memorizer-heading-actions { width: 100%; justify-content: flex-start; }
+  .memorizer-toolbar { align-items: stretch; }
+  .memorizer-options { justify-content: space-between; }
+  .memorizer-actions { justify-content: flex-start; }
+  .memorizer-instruction { margin: .45rem 0 .7rem; }
 }
