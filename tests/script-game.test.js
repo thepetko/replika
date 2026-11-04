@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  collapseCastListSections,
   ensureDailyTarget,
   extendDailyTarget,
   parseScriptDocument,
@@ -53,6 +54,32 @@ test('zobrazenie jedného dejstva zachová odseky a celé repliky v poradí', ()
   assert.deepEqual(scriptEntriesInSection(script, script.sections[1].id).map(entry => entry.sourceIndex), [1, 2, 3, 4, 5, 6]);
   assert.deepEqual(scriptEntriesInSection(script, script.sections[2].id).map(entry => entry.sourceIndex), [7, 8, 9, 10]);
   assert.equal(scriptEntriesInSection(script, script.sections[1].id).filter(entry => entry.speechId === script.speeches[1].id).length, 3);
+});
+
+test('zoznam postáv v úvode nevytvára falošné dejstvá a zachová prológ', () => {
+  const source = [
+    { text: 'OSOBY' }, { text: 'TULÁK' }, { text: 'Prvé dejstvo:' }, { text: 'Iris' },
+    { text: 'Druhé dejstvo' }, { text: 'Kukla' }, { text: 'Epilóg' }, { text: 'Slimáky' },
+    { text: 'TULÁK: Začnime.' }, { text: 'Prvé dejstvo', style: 'Heading1' },
+    { text: 'TULÁK: Pokračujem.' }, { text: 'Druhé dejstvo', style: 'Heading1' },
+    { text: 'TULÁK: Končím.' }
+  ];
+  const script = parseScriptDocument(source);
+  assert.deepEqual(script.sections.map(section => section.title), ['Začiatok', 'Prvé dejstvo', 'Druhé dejstvo']);
+  assert.deepEqual(script.speeches.map(speech => speech.sectionId), ['section-start', 'section-9', 'section-11']);
+  assert.equal(script.entries.length, source.length);
+  assert.equal(script.entries.filter(entry => entry.ambiguous).length, 0);
+
+  const stored = parseScriptDocument([{ text: 'Zoznam osôb' }, ...source.slice(1)]);
+  stored.entries[0].rawText = 'OSOBY';
+  stored.speeches[0].learnedAt = '2026-11-01T10:00:00.000Z';
+  stored.speeches[0].note = 'Vstup na scénu';
+  const removed = collapseCastListSections(stored);
+  assert.equal(removed.size, 3);
+  assert.deepEqual(stored.sections.map(section => section.title), script.sections.map(section => section.title));
+  assert.deepEqual(stored.speeches.map(speech => speech.sectionId), script.speeches.map(speech => speech.sectionId));
+  assert.equal(stored.speeches[0].learnedAt, '2026-11-01T10:00:00.000Z');
+  assert.equal(stored.speeches[0].note, 'Vstup na scénu');
 });
 
 test('pokračovanie odseku zostane v jednej samostatnej replike postavy', () => {

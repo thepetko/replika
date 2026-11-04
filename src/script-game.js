@@ -1,4 +1,4 @@
-import { availableDates, estimateMinutes } from './game-plan.js?v=39';
+import { availableDates, estimateMinutes } from './game-plan.js?v=40';
 
 const SPEAKER_NAME = String.raw`[\p{Lu}\d][\p{Lu}\p{M}\d ,'’\-–—/]{0,50}?`;
 const EXPLICIT_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:\s*(\([^)]{0,200}\)))?\s*(?::|\.)\s*(.*)$`, 'u');
@@ -6,6 +6,7 @@ const TABBED_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})(?:[ \u00
 const DIRECTED_SPEAKER_LINE = new RegExp(String.raw`^\s*(${SPEAKER_NAME})\s+(\([^)]{0,200}\))\.?\s*(.*)$`, 'u');
 const UNMARKED_SPEAKER_LINE = /^\s*((?:[\p{Lu}\p{M}\d][\p{Lu}\p{M}\d'’\-]*)(?:\s+[\p{Lu}\p{M}\d][\p{Lu}\p{M}\d'’\-]*)*)\s+(?=\p{Lu}\p{Ll})(.*)$/u;
 const STRUCTURE_HEADING = /^(?:(?:prvé|prvý|druhé|druhý|tretie|tretí|štvrté|štvrtý|piate|piaty|šieste|šiesty|siedme|siedmy|ôsme|ôsmy|deviate|deviaty|desiate|desiaty|\d+\.?|[IVXLCDM]+\.?)\s+)?(?:dejstvo|obraz)(?:\s*[:.\-–—].*)?$|^(?:sc[eé]na|výstup)\s+(?:\d+|[IVXLCDM]+)(?:\s*[:.\-–—].*)?$|^epil[oó]g\s*:?$/iu;
+const CAST_LIST_HEADING = /^(?:osoby|obsadenie|postavy|účinkujúci|účinkujúce osoby)\s*:?$/iu;
 const NON_SPEAKER_LABEL = /^(?:obsadenie|postavy|osoby|účinkujú|účinkujúci|koniec)$/iu;
 
 function cleanText(value) {
@@ -182,7 +183,44 @@ export function parseScriptDocument(paragraphs = [], resolutions = {}) {
     }
   });
 
-  return { entries, sections, speeches, speakers };
+  const script = { entries, sections, speeches, speakers };
+  collapseCastListSections(script);
+  return script;
+}
+
+/** Zachová odseky a identitu replík; opraví iba falošné časti v úvodnom zozname postáv. */
+export function collapseCastListSections(script) {
+  const entries = script?.entries ?? [];
+  const firstSpeech = entries.findIndex(entry => entry.type === 'speech');
+  const castIndex = entries.findIndex((entry, index) => index < 10 && (firstSpeech < 0 || index < firstSpeech) && CAST_LIST_HEADING.test(cleanText(entry.rawText)));
+  if (castIndex < 0) return new Set();
+  const firstStyledSection = entries.findIndex((entry, index) => index > castIndex
+    && STRUCTURE_HEADING.test(cleanText(entry.rawText))
+    && /(?:heading|nadpis|title)/iu.test(entry.style ?? ''));
+  const firstBodyMarker = entries.findIndex((entry, index) => index > castIndex
+    && entry.type === 'heading' && /^(?:[IVXLCDM]+|\d+)\.$/u.test(cleanText(entry.rawText)));
+  const castEnd = Math.min(
+    firstSpeech < 0 ? entries.length : firstSpeech,
+    firstStyledSection < 0 ? entries.length : firstStyledSection,
+    firstBodyMarker < 0 ? entries.length : firstBodyMarker
+  );
+  for (let index = castIndex + 1; index < castEnd; index += 1) {
+    if (entries[index].type === 'unknown') entries[index].ambiguous = false;
+  }
+  const entryPosition = new Map(entries.map((entry, index) => [entry.id, index]));
+  const removedIds = new Set((script.sections ?? [])
+    .filter(section => {
+      const position = entryPosition.get(section.headingEntryId);
+      return position > castIndex && position < castEnd;
+    })
+    .map(section => section.id));
+  if (!removedIds.size) return removedIds;
+  const startId = script.sections[0].id;
+  for (const entry of entries) if (removedIds.has(entry.sectionId)) entry.sectionId = startId;
+  for (const speech of script.speeches ?? []) if (removedIds.has(speech.sectionId)) speech.sectionId = startId;
+  script.sections = script.sections.filter(section => !removedIds.has(section.id));
+  script.sections.forEach((section, index) => { section.order = index; });
+  return removedIds;
 }
 
 export function scriptOwnSpeeches(game) {

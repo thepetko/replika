@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=39">
+  <link rel="stylesheet" href="styles.css?v=40">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -93,12 +93,11 @@
           <div class="memorizer-toolbar">
             <div class="memorizer-options">
               <div class="memorizer-switch" role="group" aria-label="Spôsob nápovedy"><button id="memorizerLettersBtn" class="active" type="button" aria-pressed="true">Písmená</button><button id="memorizerWordsBtn" type="button" aria-pressed="false">Slová</button></div>
-              <label class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen alebo slov"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
+              <label class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen"><option value="1">1 písmeno</option><option value="2" selected>2 písmená</option><option value="3">3 písmená</option></select></label>
             </div>
             <div class="memorizer-actions"><button id="memorizerRevealAllBtn" class="secondary" type="button">Odkryť všetko</button></div>
           </div>
-          <details class="memorizer-display-options"><summary>Nastavenia zobrazenia</summary><div class="memorizer-switch" role="group" aria-label="Rozostupy"><button id="memorizerPaddedBtn" class="active" type="button" aria-pressed="true">S rozostupmi</button><button id="memorizerCompactBtn" type="button" aria-pressed="false">Kompaktne</button></div></details>
-          <p class="memorizer-instruction">Povedz repliku spamäti; ťuknutím odkryješ slovo alebo riadok.</p>
+          <p class="memorizer-instruction">Povedz repliku spamäti. Ťuknutím odkryješ alebo zakryješ slovo či riadok.</p>
           <div id="memorizerLines" class="memorizer-lines" aria-label="Text na precvičovanie"></div>
         </div>
       </div>
@@ -345,6 +344,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=39"></script>
+<script type="module" src="app.js?v=40"></script>
 </body>
 </html>

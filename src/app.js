@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=39';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=40';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=39';
-import { parseText, PARSER_VERSION } from './parser.js?v=39';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=39';
-import { fingerprintScript } from './script-importer.js?v=39';
-import { readDocxParagraphs } from './docx-reader.js?v=39';
+} from './learning-engine.js?v=40';
+import { parseText, PARSER_VERSION } from './parser.js?v=40';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=40';
+import { fingerprintScript } from './script-importer.js?v=40';
+import { readDocxParagraphs } from './docx-reader.js?v=40';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=39';
+} from './scene-learning-engine.js?v=40';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,14 +27,15 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=39';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=39';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken } from './memorizer.js?v=39';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=39';
+} from './storage.js?v=40';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=40';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken, visibleWordHint } from './memorizer.js?v=40';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=40';
 import {
   ensureDailyTarget,
   extendDailyTarget,
   isDailyTargetComplete,
+  collapseCastListSections,
   parseScriptDocument,
   scriptEntriesInSection,
   scriptDailyPace,
@@ -44,7 +45,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=39';
+} from './script-game.js?v=40';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -72,8 +73,10 @@ const revealedScriptSpeechIds = new Set();
 let allScriptLinesRevealed = false;
 let memorizerSource = null;
 let memorizerMode = 'letters';
-let memorizerSpacing = 'padded';
+let memorizerLetterCount = 2;
+let memorizerWordPercent = 25;
 let memorizerRevealed = new Set();
+let memorizerHidden = new Set();
 let memorizerRevealedLines = new Set();
 let memorizerAllRevealed = false;
 let memorizerEditing = true;
@@ -118,10 +121,11 @@ function normalizeRehearsal(rehearsal) {
 function normalizeGame(game) {
   const deadline = game.deadline ?? localDateKey();
   const createdAt = game.createdAt ?? nowIso();
+  const removedSections = collapseCastListSections(game.script);
   return {
     id: game.id, title: game.title || 'Bez názvu', character: game.character ?? '',
     importFingerprint: game.importFingerprint ?? '', startDate: game.startDate ?? localDateKey(createdAt),
-    deadline, daysOff: [...new Set(game.daysOff ?? [])].sort(), focusSectionId: game.focusSectionId ?? null,
+    deadline, daysOff: [...new Set(game.daysOff ?? [])].sort(), focusSectionId: removedSections.has(game.focusSectionId) ? null : game.focusSectionId ?? null,
     script: game.script, dailyTargets: game.dailyTargets ?? {}, createdAt, updatedAt: game.updatedAt ?? nowIso()
   };
 }
@@ -314,15 +318,19 @@ function renderMemorizer() {
   byId('memorizerWordsBtn').classList.toggle('active', memorizerMode === 'words');
   byId('memorizerLettersBtn').setAttribute('aria-pressed', String(memorizerMode === 'letters'));
   byId('memorizerWordsBtn').setAttribute('aria-pressed', String(memorizerMode === 'words'));
-  byId('memorizerPaddedBtn').classList.toggle('active', memorizerSpacing === 'padded');
-  byId('memorizerCompactBtn').classList.toggle('active', memorizerSpacing === 'compact');
-  byId('memorizerPaddedBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'padded'));
-  byId('memorizerCompactBtn').setAttribute('aria-pressed', String(memorizerSpacing === 'compact'));
+  const showSelect = byId('memorizerShowSelect');
+  if (showSelect.dataset.mode !== memorizerMode) {
+    showSelect.replaceChildren(...(memorizerMode === 'letters'
+      ? [new Option('1 písmeno', '1'), new Option('2 písmená', '2'), new Option('3 písmená', '3')]
+      : [new Option('25 % slov', '25'), new Option('50 % slov', '50'), new Option('75 % slov', '75')]));
+    showSelect.dataset.mode = memorizerMode;
+  }
+  showSelect.value = String(memorizerMode === 'letters' ? memorizerLetterCount : memorizerWordPercent);
+  showSelect.setAttribute('aria-label', memorizerMode === 'letters' ? 'Počet viditeľných písmen' : 'Podiel viditeľných slov');
   const hasReveal = memorizerAllRevealed || memorizerRevealed.size > 0 || memorizerRevealedLines.size > 0;
   byId('memorizerRevealAllBtn').textContent = hasReveal ? 'Skryť všetko' : 'Odkryť všetko';
 
   const box = byId('memorizerLines');
-  box.classList.toggle('compact', memorizerSpacing === 'compact');
   box.replaceChildren();
   let globalWordIndex = 0;
   for (const [lineIndex, line] of splitMemorizerLines(memorizerText()).entries()) {
@@ -332,18 +340,18 @@ function renderMemorizer() {
     for (const token of splitMemorizerTokens(line)) {
       if (!isWordToken(token)) { words.append(document.createTextNode(token)); continue; }
       const wordIndex = globalWordIndex++;
-      const revealed = memorizerAllRevealed || memorizerRevealedLines.has(lineIndex) || memorizerRevealed.has(wordIndex);
+      const revealed = memorizerAllRevealed || memorizerRevealedLines.has(lineIndex) || memorizerRevealed.has(wordIndex)
+        || (memorizerMode === 'words' && visibleWordHint(lineWordIndex, memorizerWordPercent) && !memorizerHidden.has(wordIndex));
       const word = element('button', `memorizer-word${revealed ? ' revealed' : ''}`);
       word.type = 'button';
       word.setAttribute('aria-label', `${revealed ? 'Skryť' : 'Odkryť'} slovo ${lineWordIndex + 1} v riadku ${lineIndex + 1}`);
       word.setAttribute('aria-pressed', String(revealed));
-      const count = Number(byId('memorizerShowSelect').value);
-      if (revealed || (memorizerMode === 'words' && lineWordIndex < count)) {
+      if (revealed) {
         word.textContent = token;
       } else if (memorizerMode === 'letters') {
-        const prefix = visiblePrefix(token, count);
+        const prefix = visiblePrefix(token, memorizerLetterCount);
         word.append(document.createTextNode(prefix));
-        const rest = element('span', 'memorizer-blur', Array.from(token).slice(count).join(''));
+        const rest = element('span', 'memorizer-blur', Array.from(token).slice(memorizerLetterCount).join(''));
         rest.setAttribute('aria-hidden', 'true');
         word.append(rest);
       } else {
@@ -352,7 +360,10 @@ function renderMemorizer() {
         word.append(blur);
       }
       word.addEventListener('click', () => {
-        if (memorizerRevealed.has(wordIndex)) memorizerRevealed.delete(wordIndex);
+        if (memorizerMode === 'words') {
+          if (revealed) { memorizerRevealed.delete(wordIndex); memorizerHidden.add(wordIndex); }
+          else { memorizerHidden.delete(wordIndex); memorizerRevealed.add(wordIndex); }
+        } else if (memorizerRevealed.has(wordIndex)) memorizerRevealed.delete(wordIndex);
         else memorizerRevealed.add(wordIndex);
         memorizerAllRevealed = false;
         renderMemorizer();
@@ -379,6 +390,7 @@ function renderMemorizer() {
 function openMemorizer(source = null) {
   memorizerSource = source;
   memorizerRevealed = new Set();
+  memorizerHidden = new Set();
   memorizerRevealedLines = new Set();
   memorizerAllRevealed = false;
   memorizerEditing = !memorizerText().trim();
@@ -437,7 +449,7 @@ function renderGames() {
     top.append(group, tools);
     const track = element('div', 'mini-progress'); const bar = element('span'); bar.style.width = `${percent}%`; track.append(bar);
     const open = element('button', 'primary', 'Otvoriť hru'); open.type = 'button'; open.addEventListener('click', () => openGame(game.id));
-    card.append(top, element('div', 'card-info', `Viem ${done} z ${total} ${total === 1 ? 'repliky' : 'replík'}`), track, open); list.append(card);
+    card.append(top, element('div', 'card-info', `Viem ${done} z ${total} ${total === 1 ? 'repliky' : 'replík'} · ${percent} %`), track, open); list.append(card);
   }
 }
 
@@ -628,7 +640,7 @@ function renderScriptGame(keepScroll = false) {
   const progress = scriptProgress(game); const pace = scriptDailyPace(game, today);
   byId('scriptGameHeading').textContent = game.title;
   byId('scriptGameMeta').textContent = `${game.character} · termín ${formatPlanDate(game.deadline)}`;
-  byId('scriptProgressLabel').textContent = `Viem ${progress.learned} z ${progress.total} ${progress.total === 1 ? 'repliky' : 'replík'}`;
+  byId('scriptProgressLabel').textContent = `Viem ${progress.learned} z ${progress.total} ${progress.total === 1 ? 'repliky' : 'replík'} · ${progress.percent} %`;
   byId('scriptPaceLabel').textContent = pace.impossible ? 'Termín už nie je možné stihnúť bez zmeny.' : `${pace.availableDays} dní na učenie`;
   byId('scriptPaceLabel').classList.toggle('error', pace.impossible);
   byId('scriptProgressBar').style.width = `${progress.percent}%`;
@@ -1606,15 +1618,17 @@ byId('memorizerEditBtn').addEventListener('click', () => {
   byId('memorizerText').focus();
 });
 for (const [id, mode] of [['memorizerLettersBtn', 'letters'], ['memorizerWordsBtn', 'words']]) {
-  byId(id).addEventListener('click', () => { memorizerMode = mode; renderMemorizer(); });
+  byId(id).addEventListener('click', () => { memorizerMode = mode; memorizerHidden.clear(); renderMemorizer(); });
 }
-for (const [id, spacing] of [['memorizerPaddedBtn', 'padded'], ['memorizerCompactBtn', 'compact']]) {
-  byId(id).addEventListener('click', () => { memorizerSpacing = spacing; renderMemorizer(); });
-}
-byId('memorizerShowSelect').addEventListener('change', renderMemorizer);
+byId('memorizerShowSelect').addEventListener('change', event => {
+  if (memorizerMode === 'letters') memorizerLetterCount = Number(event.target.value);
+  else memorizerWordPercent = Number(event.target.value);
+  memorizerHidden.clear();
+  renderMemorizer();
+});
 byId('memorizerRevealAllBtn').addEventListener('click', () => {
   if (memorizerAllRevealed || memorizerRevealed.size || memorizerRevealedLines.size) {
-    memorizerAllRevealed = false; memorizerRevealed.clear(); memorizerRevealedLines.clear();
+    memorizerAllRevealed = false; memorizerRevealed.clear(); memorizerRevealedLines.clear(); memorizerHidden.clear();
   } else memorizerAllRevealed = true;
   renderMemorizer();
 });
@@ -1787,5 +1801,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=39', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=40', { updateViaCache: 'none' }).catch(() => {});
 }

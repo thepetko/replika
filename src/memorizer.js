@@ -13,3 +13,9 @@ export function visiblePrefix(word, count) {
 export function isWordToken(token) {
   return /[\p{L}\p{N}]/u.test(token);
 }
+
+export function visibleWordHint(index, percent) {
+  if (percent === 25) return index % 4 === 0;
+  if (percent === 50) return index % 2 === 0;
+  return index % 4 !== 3;
+}
