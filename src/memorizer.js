@@ -1,3 +1,5 @@
+import { sentenceStartOffsets } from './parser.js?v=42';
+
 export function splitMemorizerLines(text) {
   return String(text ?? '').trim().split(/\r?\n/u).map(line => line.trim()).filter(Boolean);
 }
@@ -18,4 +20,22 @@ export function visibleWordHint(index, percent) {
   if (percent === 25) return index % 4 === 0;
   if (percent === 50) return index % 2 === 0;
   return index % 4 !== 3;
+}
+
+export function memorizerSentenceIds(lines) {
+  const starts = sentenceStartOffsets(lines.join('\n'));
+  const ids = [];
+  let offset = 0;
+  let sentenceIndex = 0;
+  for (const [lineIndex, line] of lines.entries()) {
+    for (const token of splitMemorizerTokens(line)) {
+      if (isWordToken(token)) {
+        while (sentenceIndex + 1 < starts.length && offset >= starts[sentenceIndex + 1]) sentenceIndex++;
+        ids.push(sentenceIndex);
+      }
+      offset += token.length;
+    }
+    if (lineIndex < lines.length - 1) offset++;
+  }
+  return ids;
 }

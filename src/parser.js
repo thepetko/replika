@@ -55,6 +55,15 @@ function splitBlock(rawBlock) {
     .filter(Boolean);
 }
 
+export function sentenceStartOffsets(text) {
+  const protectedText = protectStageDirections(protectAbbreviations(String(text ?? '')));
+  const starts = [0];
+  for (const match of protectedText.matchAll(/[.!?]+["“”’»]?\s+(?=\S)/gu)) {
+    starts.push(match.index + match[0].length);
+  }
+  return starts;
+}
+
 export function parseText(text) {
   const rawBlocks = String(text ?? '')
     .replace(/\r/g, '')
