@@ -1,4 +1,4 @@
-import { sentenceStartOffsets } from './parser.js?v=43';
+import { sentenceStartOffsets } from './parser.js?v=44';
 
 export function splitMemorizerLines(text) {
   return String(text ?? '').trim().split(/\r?\n/u).map(line => line.trim()).filter(Boolean);

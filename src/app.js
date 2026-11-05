@@ -1,4 +1,4 @@
-import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=43';
+import { addActivityInterval, summarizeActivity, VisibleActivityTracker } from './activity-tracker.js?v=44';
 import {
   advancePresentation,
   createReviewSession,
@@ -8,15 +8,15 @@ import {
   goBack,
   rateCurrentTask,
   repeatCurrentTask
-} from './learning-engine.js?v=43';
-import { parseText, PARSER_VERSION } from './parser.js?v=43';
-import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=43';
-import { fingerprintScript } from './script-importer.js?v=43';
-import { readDocxParagraphs } from './docx-reader.js?v=43';
+} from './learning-engine.js?v=44';
+import { parseText, PARSER_VERSION } from './parser.js?v=44';
+import { parseScene, SCENE_PARSER_VERSION, validateScene } from './scene-parser.js?v=44';
+import { fingerprintScript } from './script-importer.js?v=44';
+import { readDocxParagraphs } from './docx-reader.js?v=44';
 import {
   advanceScenePresentation, createSceneReviewSession, createSceneSession, getCurrentSceneTask,
   giveSceneHint, goBackScene, rateSceneTask, repeatSceneTask
-} from './scene-learning-engine.js?v=43';
+} from './scene-learning-engine.js?v=44';
 import {
   APP_STORAGE_KEY,
   clearAppData,
@@ -27,10 +27,10 @@ import {
   replaceFromBackup,
   saveAppData,
   validateBackup
-} from './storage.js?v=43';
-import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=43';
-import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken, visibleWordHint, memorizerSentenceIds } from './memorizer.js?v=43';
-import { estimateMinutes, localDateKey } from './game-plan.js?v=43';
+} from './storage.js?v=44';
+import { closeMenusOutside, maskMemorizedText } from './ui-interactions.js?v=44';
+import { splitMemorizerLines, splitMemorizerTokens, visiblePrefix, isWordToken, visibleWordHint, memorizerSentenceIds } from './memorizer.js?v=44';
+import { estimateMinutes, localDateKey } from './game-plan.js?v=44';
 import {
   ensureDailyTarget,
   extendDailyTarget,
@@ -45,7 +45,7 @@ import {
   setScriptSpeechHiddenById,
   setScriptSpeechLearnedById,
   setScriptSpeechNoteById
-} from './script-game.js?v=43';
+} from './script-game.js?v=44';
 
 const byId = id => document.getElementById(id);
 const views = {
@@ -81,6 +81,8 @@ let memorizerHidden = new Set();
 let memorizerRevealedLines = new Set();
 let memorizerAllRevealed = false;
 let memorizerEditing = true;
+let hoveredMemorizerSentence = null;
+let focusedMemorizerSentence = null;
 
 function nowIso() {
   return new Date().toISOString();
@@ -303,6 +305,18 @@ function resetMemorizerReveal() {
   memorizerHidden.clear();
   memorizerRevealedLines.clear();
   memorizerAllRevealed = false;
+  hoveredMemorizerSentence = null;
+  focusedMemorizerSentence = null;
+}
+
+function updateMemorizerSentencePreview() {
+  const box = byId('memorizerLines');
+  const sentenceMode = memorizerMode === 'sentences';
+  for (const word of box.querySelectorAll('.memorizer-word')) {
+    word.classList.toggle('sentence-preview', sentenceMode && (
+      word.dataset.sentenceId === hoveredMemorizerSentence || word.dataset.sentenceId === focusedMemorizerSentence
+    ));
+  }
 }
 
 function renderMemorizer() {
@@ -349,6 +363,7 @@ function renderMemorizer() {
 
   const box = byId('memorizerLines');
   box.replaceChildren();
+  box.classList.toggle('sentence-mode', sentenceMode);
   const lines = splitMemorizerLines(memorizerText());
   const sentenceIds = memorizerSentenceIds(lines);
   let globalWordIndex = 0;
@@ -366,6 +381,7 @@ function renderMemorizer() {
           || (memorizerMode === 'words' && visibleWordHint(lineWordIndex, memorizerWordPercent) && !memorizerHidden.has(wordIndex));
       const word = element('button', `memorizer-word${revealed ? ' revealed' : ''}`);
       word.type = 'button';
+      word.dataset.sentenceId = String(sentenceId);
       word.setAttribute('aria-label', sentenceMode
         ? `${sentenceRevealed ? 'Zakryť' : 'Odkryť'} vetu ${sentenceId + 1}`
         : `${revealed ? 'Skryť' : 'Odkryť'} slovo ${lineWordIndex + 1} v riadku ${lineIndex + 1}`);
@@ -414,6 +430,7 @@ function renderMemorizer() {
     }
     box.append(row);
   }
+  updateMemorizerSentencePreview();
 }
 
 function openMemorizer(source = null) {
@@ -1653,6 +1670,33 @@ for (const [id, mode] of [['memorizerLettersBtn', 'letters'], ['memorizerWordsBt
     renderMemorizer();
   });
 }
+const memorizerLines = byId('memorizerLines');
+memorizerLines.addEventListener('pointerover', event => {
+  if (memorizerMode !== 'sentences') return;
+  const word = event.target.closest?.('.memorizer-word');
+  if (!word || !memorizerLines.contains(word)) return;
+  hoveredMemorizerSentence = word.dataset.sentenceId;
+  updateMemorizerSentencePreview();
+});
+memorizerLines.addEventListener('pointerout', event => {
+  if (memorizerMode !== 'sentences') return;
+  const word = event.target.closest?.('.memorizer-word');
+  if (!word || hoveredMemorizerSentence !== word.dataset.sentenceId) return;
+  const nextWord = event.relatedTarget?.closest?.('.memorizer-word');
+  if (nextWord?.dataset.sentenceId === hoveredMemorizerSentence) return;
+  hoveredMemorizerSentence = null;
+  updateMemorizerSentencePreview();
+});
+memorizerLines.addEventListener('focusin', event => {
+  if (memorizerMode !== 'sentences' || !event.target.matches?.('.memorizer-word:focus-visible')) return;
+  focusedMemorizerSentence = event.target.dataset.sentenceId;
+  updateMemorizerSentencePreview();
+});
+memorizerLines.addEventListener('focusout', event => {
+  if (memorizerMode !== 'sentences' || !event.target.matches?.('.memorizer-word')) return;
+  focusedMemorizerSentence = null;
+  updateMemorizerSentencePreview();
+});
 byId('memorizerShowSelect').addEventListener('change', event => {
   if (memorizerMode === 'letters') memorizerLetterCount = Number(event.target.value);
   else memorizerWordPercent = Number(event.target.value);
@@ -1839,5 +1883,5 @@ renderGames();
 tracker.start();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('./sw.js?v=43', { updateViaCache: 'none' }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js?v=44', { updateViaCache: 'none' }).catch(() => {});
 }

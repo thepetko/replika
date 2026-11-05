@@ -25,7 +25,7 @@ Používateľské texty a štatistiky zostávajú v `localStorage` konkrétneho 
 
 Po otvorení aplikácie sa zobrazia hry. Otvorená hra zobrazuje vždy jednu časť scenára v pôvodnom poradí. Dejstvá a scény sa prepínajú v ukotvenom hornom paneli; progres, dnešný cieľ a ovládanie masiek zostávajú dostupné. Knižnica samostatných replík a scén je dostupná z karty **Učiť repliku** cez **Uložené texty**.
 
-Karta **Učiť repliku** má tri samostatné režimy. **Písmená** ukazujú prvých 1–3 písmená každého slova, **Slová** ukazujú 25 %, 50 % alebo 75 % slov rozložených po celej replike. V režime **Vety** je text najprv celý zakrytý a ťuknutie odhalí alebo znovu zakryje celú vetu, aj keď pokračuje na ďalšom riadku. Cvičebný text sa ukladá lokálne a je súčasťou JSON zálohy. Rovnaké rozhranie otvoríš z každej vlastnej repliky v importovanom scenári tlačidlom **Učiť túto repliku** alebo zo samostatného textu v knižnici. Úprava cvičebnej verzie nemení pôvodný scenár ani uložený text.
+Karta **Učiť repliku** má tri samostatné režimy. **Písmená** ukazujú prvých 1–3 písmená každého slova, **Slová** ukazujú 25 %, 50 % alebo 75 % slov rozložených po celej replike. V režime **Vety** je text najprv celý zakrytý; pri hoveri alebo klávesnicovom zameraní sa zvýrazní celá veta a ťuknutie ju odhalí alebo znovu zakryje, aj keď pokračuje na ďalšom riadku. Cvičebný text sa ukladá lokálne a je súčasťou JSON zálohy. Rovnaké rozhranie otvoríš z každej vlastnej repliky v importovanom scenári tlačidlom **Učiť túto repliku** alebo zo samostatného textu v knižnici. Úprava cvičebnej verzie nemení pôvodný scenár ani uložený text.
 
 ## Scény
 
