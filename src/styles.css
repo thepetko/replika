@@ -885,11 +885,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .memorizer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .memorizer-options, .memorizer-actions { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
 .memorizer-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
-.memorizer-switch button { min-height: 2.55rem; padding: .4rem .85rem; border: 0; background: transparent; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.memorizer-switch button { min-height: 2.75rem; padding: .4rem .85rem; border: 0; background: transparent; color: var(--muted); font-weight: 700; white-space: nowrap; }
 .memorizer-switch button.active { background: var(--ink); color: var(--surface); }
 .memorizer-show-label { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.9rem; margin: 0; padding: 0 .7rem; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); font-weight: 700; }
 .memorizer-show-label select { min-height: 2.5rem; padding: .2rem .3rem; border: 0; box-shadow: none; cursor: pointer; }
-.memorizer-reveal-scope { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .88rem; font-weight: 600; white-space: nowrap; }
 .memorizer-actions button { min-height: 2.7rem; padding: .45rem .8rem; font-weight: 600; }
 .memorizer-instruction { margin: 1.1rem 0 2rem; color: var(--muted); }
 .memorizer-lines { padding: 1.25rem; border-radius: var(--radius-medium); background: var(--paper); color: #684c21; font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.7; }

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#faf8f5">
   <title>Replika – učenie divadelných textov</title>
   <link rel="icon" href="replika-mark.png" type="image/png">
-  <link rel="stylesheet" href="styles.css?v=42">
+  <link rel="stylesheet" href="styles.css?v=43">
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Preskočiť na obsah</a>
@@ -78,7 +78,7 @@
 
     <section class="view memorizer-view hidden" id="memorizerView" aria-labelledby="memorizerHeading">
       <div class="memorizer-heading">
-        <div><h1 id="memorizerHeading">Učiť repliku</h1><p id="memorizerContext" class="muted-copy">Vlož text a odkrývaj ho po slovách alebo vetách.</p></div>
+        <div><h1 id="memorizerHeading">Učiť repliku</h1><p id="memorizerContext" class="muted-copy">Vlož text a precvičuj ho po písmenách, slovách alebo vetách.</p></div>
         <div class="memorizer-heading-actions"><button id="memorizerLibraryBtn" class="secondary" type="button">Uložené texty</button><button id="memorizerBackBtn" class="text-button hidden" type="button">← Späť do scenára</button><button id="memorizerEditBtn" class="text-button hidden" type="button">Upraviť</button></div>
       </div>
       <div class="memorizer-card">
@@ -92,9 +92,8 @@
         <div id="memorizerPractice" class="hidden">
           <div class="memorizer-toolbar">
             <div class="memorizer-options">
-              <div class="memorizer-switch" role="group" aria-label="Spôsob nápovedy"><button id="memorizerLettersBtn" class="active" type="button" aria-pressed="true">Písmená</button><button id="memorizerWordsBtn" type="button" aria-pressed="false">Slová</button></div>
-              <label class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen"><option value="1">1 písmeno</option><option value="2" selected>2 písmená</option><option value="3">3 písmená</option></select></label>
-              <div class="memorizer-reveal-scope"><span>Ťuknutím odkryť</span><div class="memorizer-switch" role="group" aria-label="Rozsah odkrytia"><button id="memorizerRevealWordBtn" class="active" type="button" aria-pressed="true">Slovo</button><button id="memorizerRevealSentenceBtn" type="button" aria-pressed="false">Vetu</button></div></div>
+              <div class="memorizer-switch" role="group" aria-label="Spôsob učenia"><button id="memorizerLettersBtn" class="active" type="button" aria-pressed="true">Písmená</button><button id="memorizerWordsBtn" type="button" aria-pressed="false">Slová</button><button id="memorizerSentencesBtn" type="button" aria-pressed="false">Vety</button></div>
+              <label id="memorizerShowLabel" class="memorizer-show-label" for="memorizerShowSelect">Ukázať <select id="memorizerShowSelect" aria-label="Počet viditeľných písmen"><option value="1">1 písmeno</option><option value="2" selected>2 písmená</option><option value="3">3 písmená</option></select></label>
             </div>
             <div class="memorizer-actions"><button id="memorizerRevealAllBtn" class="secondary" type="button">Odkryť všetko</button></div>
           </div>
@@ -345,6 +344,6 @@
   </form>
 </dialog>
 
-<script type="module" src="app.js?v=42"></script>
+<script type="module" src="app.js?v=43"></script>
 </body>
 </html>
